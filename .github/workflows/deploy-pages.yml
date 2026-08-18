@@ -31,15 +31,9 @@ jobs:
           cd web
           npm run build
 
-      - name: Upload artifact for GitHub Pages
-        uses: actions/upload-pages-artifact@v1
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
         with:
-          path: web/dist
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./web/dist
 
-  deploy-pages:
-    needs: build-and-deploy
-    runs-on: ubuntu-latest
-    permissions: write-all
-    steps:
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
