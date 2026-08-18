@@ -26,24 +26,14 @@ jobs:
           cd web
           npm install
 
-      - name: Debug listing
-        run: |
-          ls -la web
-          pwd
-          node -v
-          npm -v
-          echo '--- index.html ---'
-          sed -n '1,120p' web/index.html || true
-
       - name: Build frontend
         run: |
           cd web
           npm run build
 
       - name: Upload artifact for GitHub Pages
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-pages-artifact@v1
         with:
-          name: github-pages
           path: web/dist
 
   deploy-pages:
