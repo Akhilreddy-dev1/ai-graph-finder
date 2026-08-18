@@ -38,3 +38,8 @@ jobs:
           body=$(echo "$resp" | sed '$d')
           echo "HTTP_STATUS=$http_code"
           echo "$body"
+          echo "Fetching service details..."
+          service_resp=$(curl -sS -H "Accept: application/json" -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services/$RENDER_SERVICE_ID") || true
+          echo "$service_resp"
+          domain=$(echo "$service_resp" | sed -n 's/.*\"defaultDomain\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p' || true)
+          echo "SERVICE_DOMAIN=$domain"
