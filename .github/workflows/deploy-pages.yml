@@ -26,6 +26,15 @@ jobs:
           cd web
           npm install
 
+      - name: Debug listing
+        run: |
+          ls -la web
+          pwd
+          node -v
+          npm -v
+          echo '--- index.html ---'
+          sed -n '1,120p' web/index.html || true
+
       - name: Build frontend
         run: |
           cd web
