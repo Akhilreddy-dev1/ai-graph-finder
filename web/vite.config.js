@@ -5,7 +5,7 @@ import path from 'path'
 // Project is published to GitHub Pages at https://<user>.github.io/ai-graph-finder/
 // Set base to repository name so assets load at /ai-graph-finder/
 export default defineConfig({
-  base: '/ai-graph-finder/',
+  base: './',
   plugins: [react()],
   resolve: {
     alias: {
