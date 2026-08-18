@@ -1,4 +1,4 @@
-name: Deploy FastAPI backend to Render
+﻿name: Deploy FastAPI backend to Render
 
 on:
   workflow_dispatch: {}
@@ -16,13 +16,25 @@ jobs:
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
           RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
+          API_KEY: ${{ secrets.API_KEY }}
+          WEB_ID: ${{ secrets.WEB_ID }}
         run: |
           set -e
+          # Fallback to alternate secret names if primary ones are not set
+          if [ -z "$RENDER_API_KEY" ]; then RENDER_API_KEY="$API_KEY"; fi
+          if [ -z "$RENDER_SERVICE_ID" ]; then RENDER_SERVICE_ID="$WEB_ID"; fi
+          if [ -z "$RENDER_API_KEY" ] || [ -z "$RENDER_SERVICE_ID" ]; then
+            echo "Required Render secrets are missing; aborting"
+            exit 2
+          fi
           echo "Triggering Render deploy for service $RENDER_SERVICE_ID"
           resp=$(curl -sS -X POST \
             -H "Accept: application/json" \
             -H "Authorization: Bearer $RENDER_API_KEY" \
             -H "Content-Type: application/json" \
             "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
-            -d '{"clearCache":false}') || (echo "Render API request failed"; exit 1)
-          echo "$resp"
+            -d '{"clearCache":false}' -w "\n%{http_code}") || (echo "Render API request failed"; exit 1)
+          http_code=$(echo "$resp" | tail -n1)
+          body=$(echo "$resp" | sed '$d')
+          echo "HTTP_STATUS=$http_code"
+          echo "$body"
