@@ -3,6 +3,7 @@ __pycache__/
 .env
 .env.*
 *.html
+!web/index.html
 .venv/
 venv/
 .streamlit/secrets.toml
