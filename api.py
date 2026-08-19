@@ -18,6 +18,39 @@ except Exception:
     resource = None
 
 app = FastAPI(title="AI Graph Finder API")
+import os
+import secrets
+from fastapi import Header
+
+ALLOWED_ORIGINS = [
+    o.strip() for o in os.environ.get(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",") if o.strip()
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
+
+
+def require_admin(x_admin_key):
+    """No key set = local dev, stays open. Key set = required."""
+    if not ADMIN_KEY:
+        return
+    if not x_admin_key or not secrets.compare_digest(x_admin_key, ADMIN_KEY):
+        raise HTTPException(status_code=401, detail="Invalid or missing admin key")
+
+
+@app.get('/api/health')
+async def health():
+    return {"status": "ok"}
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
