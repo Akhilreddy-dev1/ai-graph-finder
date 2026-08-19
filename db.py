@@ -5,7 +5,7 @@ import secrets
 import time
 
 DB_PATH = Path(__file__).parent / 'graph.db'
-
+DB_PATH = Path(os.environ.get('AGF_DB_PATH', Path(__file__).parent / 'graph.db'))
 CREATE_SESSIONS = '''
 CREATE TABLE IF NOT EXISTS sessions (
   session_id TEXT PRIMARY KEY,
