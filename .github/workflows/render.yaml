@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: ai-graph-finder-api
+    runtime: python
+    plan: free
+    region: oregon
+    branch: main
+    buildCommand: pip install -r requirements-api.txt
+    startCommand: uvicorn api:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ALLOWED_ORIGINS
+        value: https://akhilreddy-dev1.github.io
+      - key: ADMIN_KEY
+        generateValue: true
+      - key: AGF_DB_PATH
+        value: /tmp/graph.db
