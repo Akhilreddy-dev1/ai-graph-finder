@@ -1,11 +1,12 @@
-import sqlite3
-from pathlib import Path
 import json
+import os
 import secrets
+import sqlite3
 import time
+import uuid
+from pathlib import Path
 
-DB_PATH = Path(__file__).parent / 'graph.db'
-DB_PATH = Path(os.environ.get('AGF_DB_PATH', Path(__file__).parent / 'graph.db'))
+DB_PATH = Path(os.environ.get("AGF_DB_PATH", Path(__file__).parent / "graph.db"))
 CREATE_SESSIONS = '''
 CREATE TABLE IF NOT EXISTS sessions (
   session_id TEXT PRIMARY KEY,
@@ -115,8 +116,18 @@ def save_node(session_id: str, node: dict):
         color = node.get('color', {}).get('background')
     except Exception:
         color = None
-    cur.execute('INSERT OR REPLACE INTO nodes(session_id,node_id,label,title,color_bg,raw_json) VALUES(?,?,?,?,?,?)',
-                (session_id, node['id'], node.get('label'), node.get('title'), color, raw))
+    cur.execute(
+        """
+        INSERT INTO nodes(session_id, node_id, label, title, color_bg, raw_json)
+        VALUES(?,?,?,?,?,?)
+        ON CONFLICT(session_id, node_id) DO UPDATE SET
+          label=excluded.label,
+          title=excluded.title,
+          color_bg=excluded.color_bg,
+          raw_json=excluded.raw_json
+        """,
+        (session_id, node["id"], node.get("label"), node.get("title"), color, raw),
+    )
     conn.commit()
     conn.close()
 
@@ -136,10 +147,21 @@ def get_graph(session_id: str):
     nodes = []
     for r in cur.fetchall():
         try:
-            raw = json.loads(r['raw_json']) if r['raw_json'] else None
+            payload = json.loads(r["raw_json"]) if r["raw_json"] else {}
         except Exception:
-            raw = None
-        nodes.append({'id': r['node_id'], 'label': r['label'] or (raw and raw.get('label')) or str(r['node_id']), 'title': r['title'], 'color': {'background': r['color_bg']} if r['color_bg'] else None, 'raw': raw})
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        exec_raw = payload.get("raw") if isinstance(payload.get("raw"), dict) else payload
+        nodes.append(
+            {
+                "id": r["node_id"],
+                "label": r["label"] or payload.get("label") or str(r["node_id"]),
+                "title": r["title"],
+                "color": {"background": r["color_bg"]} if r["color_bg"] else None,
+                "raw": exec_raw,
+            }
+        )
     cur.execute('SELECT source,target FROM links WHERE session_id=?', (session_id,))
     links = [{'source': r['source'], 'target': r['target']} for r in cur.fetchall()]
     conn.close()
@@ -154,9 +176,6 @@ def clear_session(session_id: str):
     cur.execute('DELETE FROM sessions WHERE session_id=?', (session_id,))
     conn.commit()
     conn.close()
-
-# Executions
-import uuid
 
 def create_execution(session_id: str, node_id: int):
     job_id = uuid.uuid4().hex
@@ -196,7 +215,10 @@ def get_execution(job_id: str):
 def list_executions_for_session(session_id: str):
     conn = get_conn()
     cur = conn.cursor()
-    cur.execute('SELECT job_id, node_id, status, started_at, finished_at FROM executions WHERE session_id = ? ORDER BY started_at DESC', (session_id,))
+    cur.execute(
+        "SELECT job_id, node_id, status, started_at, finished_at FROM executions WHERE session_id = ? ORDER BY rowid DESC",
+        (session_id,),
+    )
     rows = cur.fetchall()
     conn.close()
     return [dict(r) for r in rows]

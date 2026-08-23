@@ -1,31 +1,40 @@
-import React, {useState, useEffect} from 'react'
+import React, {useEffect, useState} from 'react'
 import Graph3D from './components/Graph3D'
 import TerminalOverlay from './components/TerminalOverlay'
 import DetailsDrawer from './components/DetailsDrawer'
 import SessionPanel from './components/SessionPanel'
+import { healthCheck } from './api'
+import { HAS_BACKEND } from './config'
 
 export default function App(){
   const [selected, setSelected] = useState(null)
-  const [nodes, setNodes] = useState([])
+  const [backendOk, setBackendOk] = useState(null)
   const [session, setSession] = useState(()=>{
     try{ return JSON.parse(localStorage.getItem('agf_session')||'null') }catch(e){return null}
   })
 
   useEffect(()=>{
     if(session) localStorage.setItem('agf_session', JSON.stringify(session))
+    else localStorage.removeItem('agf_session')
   },[session])
+
+  useEffect(()=>{
+    let mounted = true
+    healthCheck()
+      .then(()=>{ if(mounted) setBackendOk(true) })
+      .catch(()=>{ if(mounted) setBackendOk(false) })
+    return ()=>{ mounted=false }
+  },[])
 
   return (
     <div className="min-h-screen bg-[#0f0c29] text-slate-100">
       <header className="flex items-center justify-between p-4 border-b border-gray-800">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-semibold">AI Graph Finder — Node Studio</h1>
-          <span className="text-sm text-gray-400">Dark · Minimal</span>
+          <span className={`text-xs px-2 py-1 rounded ${backendOk ? 'bg-emerald-700' : backendOk === false ? 'bg-amber-700' : 'bg-gray-700'}`}>
+            {backendOk ? 'API connected' : backendOk === false ? (HAS_BACKEND ? 'API offline' : 'Demo only') : 'Checking API…'}
+          </span>
         </div>
-        <nav className="flex items-center gap-3">
-          <a href="/" className="text-sm text-gray-300 hover:text-white">Graph Studio</a>
-          <a href="../app.py" className="text-sm text-gray-300 hover:text-white">Streamlit App</a>
-        </nav>
       </header>
 
       <main className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
