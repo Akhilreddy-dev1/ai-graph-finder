@@ -1,27 +1,32 @@
 import React, {useEffect, useState} from 'react'
-import { API_BASE } from '../config'
+import { fetchJob } from '../api'
 
 export default function JobStatus({jobId}){
   const [job, setJob] = useState(null)
+  const [error, setError] = useState('')
 
   useEffect(()=>{
     if(!jobId) return
     let mounted = true
     async function poll(){
       try{
-        const res = await fetch(`${API_BASE}/api/job/${jobId}`)
-        if(!res.ok) throw new Error(`Job request failed (${res.status})`)
-        const data = await res.json()
-        if(mounted) setJob(data)
-        if(data && data.status && ['pending','running'].includes(data.status)){
+        const data = await fetchJob(jobId)
+        if(mounted) {
+          setJob(data)
+          setError('')
+        }
+        if(data && data.status && ['pending','running'].includes(data.status) && mounted){
           setTimeout(poll, 1000)
         }
-      }catch(e){console.error(e)}
+      }catch(e){
+        if(mounted) setError(e.message || 'Failed to load job')
+      }
     }
     poll()
     return ()=>{ mounted=false }
   },[jobId])
 
+  if(error) return <div className="mt-2 text-xs text-red-300">{error}</div>
   if(!job) return null
   return (
     <div className="mt-2 text-sm text-gray-300">

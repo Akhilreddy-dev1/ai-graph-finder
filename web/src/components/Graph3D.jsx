@@ -1,14 +1,15 @@
 import React, {useEffect, useRef, useState} from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
-import { API_BASE, HAS_BACKEND, WS_BASE } from '../config'
+import { fetchGraph } from '../api'
+import { HAS_BACKEND, wsUrl } from '../config'
 
 const DEMO_GRAPH = {
   nodes: [
-    { id: 'n1', label: 'shell', color: { background: '#06b6d4' }, x:0, y:0, z:0 },
-    { id: 'n2', label: 'process: ls', color: { background: '#10b981' }, x:80, y:30, z:10 },
-    { id: 'n3', label: 'process: python', color: { background: '#f97316' }, x:-80, y:-20, z:-10 },
-    { id: 'n4', label: 'file: data.json', color: { background: '#8b5cf6' }, x:20, y:-90, z:40 }
+    { id: 'n1', label: 'shell', color: { background: '#06b6d4' } },
+    { id: 'n2', label: 'process: ls', color: { background: '#10b981' } },
+    { id: 'n3', label: 'process: python', color: { background: '#f97316' } },
+    { id: 'n4', label: 'file: data.json', color: { background: '#8b5cf6' } }
   ],
   links: [
     { source: 'n1', target: 'n2' },
@@ -17,59 +18,88 @@ const DEMO_GRAPH = {
   ]
 }
 
+function normalizeGraph(data) {
+  const nodes = (data?.nodes || []).map((n) => ({
+    ...n,
+    id: n.id,
+    label: n.label || String(n.id),
+  }))
+  const links = (data?.links || []).map((l) => ({
+    source: typeof l.source === 'object' ? l.source.id : l.source,
+    target: typeof l.target === 'object' ? l.target.id : l.target,
+  }))
+  return { nodes, links }
+}
+
 export default function Graph3D({session, onSelect}){
   const fgRef = useRef()
   const [graphData, setGraphData] = useState(DEMO_GRAPH)
-  const wsRef = useRef(null)
+  const [connected, setConnected] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(()=>{
-    if(!HAS_BACKEND || !session || !session.session_id || !session.token) return
-    // fetch initial graph for session (backend should be hosted separately in production)
-    fetch(`${API_BASE}/api/nodes?session=${encodeURIComponent(session.session_id)}&token=${encodeURIComponent(session.token)}`)
-      .then(r=>{ if(!r.ok) throw new Error(`Graph request failed (${r.status})`); return r.json() })
-      .then(d=>setGraphData({nodes:d.nodes || [], links:d.links || []}))
-      .catch((e)=>{
-        console.warn('Failed to load session graph, keeping demo:', e)
+    if(!session || !session.session_id || !session.token) {
+      setGraphData(DEMO_GRAPH)
+      setConnected(false)
+      return
+    }
+
+    let cancelled = false
+    setError('')
+
+    fetchGraph(session.session_id, session.token)
+      .then((d) => {
+        if (!cancelled) setGraphData(normalizeGraph(d))
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setError(e.message || 'Failed to load graph')
+          console.warn('Failed to load session graph, keeping demo:', e)
+        }
       })
 
-    // connect websocket to backend for this session
-    const wsUrl = `${WS_BASE}/api/ws?session=${encodeURIComponent(session.session_id)}&token=${encodeURIComponent(session.token)}`
-    const ws = new WebSocket(wsUrl)
-    wsRef.current = ws
+    const url = wsUrl(`/api/ws?session=${encodeURIComponent(session.session_id)}&token=${encodeURIComponent(session.token)}`)
+    const ws = new WebSocket(url)
 
     ws.addEventListener('message', (ev)=>{
       try{
         const msg = JSON.parse(ev.data)
         if(msg.type === 'update_graph'){
-          setGraphData({nodes: msg.nodes, links: msg.links})
+          setGraphData(normalizeGraph(msg))
         }
       }catch(e){console.error('ws parse',e)}
     })
+    ws.addEventListener('open', ()=>setConnected(true))
+    ws.addEventListener('close', ()=>setConnected(false))
+    ws.addEventListener('error', ()=>setConnected(false))
 
-    ws.addEventListener('open', ()=>console.log('ws open'))
-    ws.addEventListener('close', ()=>console.log('ws closed'))
-
-    return ()=>{ try{ ws.close() }catch(e){} }
+    return ()=>{
+      cancelled = true
+      try{ ws.close() }catch(e){}
+    }
   },[session])
 
   useEffect(()=>{
-    // subtle camera auto-adjust when data changes
     if(fgRef.current && graphData.nodes.length){
       try{
-        fgRef.current.centerAt(0,0,1000)
-        fgRef.current.zoomToFit(400)
+        fgRef.current.zoomToFit(400, 40)
       }catch(e){}
     }
   },[graphData.nodes.length])
 
-  // Render banner when there is no active session; graph still shows demo data so Pages works without backend.
-  const showDemoBanner = !session || !session.session_id
+  const showDemoBanner = !session || !session.session_id || !session.token
 
   return (
     <div className="h-[72vh] rounded-lg overflow-hidden relative">
       {showDemoBanner && (
         <div className="absolute top-4 left-4 z-20 bg-black/40 text-gray-100 px-3 py-2 rounded-md text-sm">
-          Demo mode — no backend connected. Create a session to enable live updates.
+          Demo mode — no backend session. Create a session in the sidebar to enable live updates.
+        </div>
+      )}
+      {!showDemoBanner && (
+        <div className="absolute top-4 left-4 z-20 bg-black/40 text-gray-100 px-3 py-2 rounded-md text-sm">
+          {connected ? 'Live session connected' : HAS_BACKEND ? 'Connecting to backend…' : 'Backend URL not configured'}
+          {error ? ` — ${error}` : ''}
         </div>
       )}
 
@@ -91,13 +121,15 @@ export default function Graph3D({session, onSelect}){
         linkDirectionalParticleColor={()=>'rgba(99,102,241,0.9)'}
         backgroundColor={'#0f0c29'}
         onNodeClick={node=>{
-          // center on node
           const distance = 120
           const distRatio = 1 + distance/Math.hypot(node.x||0,node.y||0,node.z||0)
-          fgRef.current.cameraPosition({x:(node.x||0)*distRatio,y:(node.y||0)*distRatio,z:(node.z||0)*distRatio},{x:node.x||0,y:node.y||0,z:node.z||0},300)
+          fgRef.current.cameraPosition(
+            {x:(node.x||0)*distRatio,y:(node.y||0)*distRatio,z:(node.z||0)*distRatio},
+            {x:node.x||0,y:node.y||0,z:node.z||0},
+            300
+          )
           onSelect && onSelect(node)
         }}
-        onEngineTick={() => { /* keep performance snappy */ }}
       />
     </div>
   )

@@ -2,7 +2,7 @@ name: Deploy Node Studio to GitHub Pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'akhilreddy-dev1-web-ui-frontend' ]
 
 jobs:
   build-and-deploy:
@@ -27,6 +27,8 @@ jobs:
           npm install
 
       - name: Build frontend
+        env:
+          VITE_API_BASE: ${{ vars.VITE_API_BASE || secrets.VITE_API_BASE }}
         run: |
           cd web
           npm run build
