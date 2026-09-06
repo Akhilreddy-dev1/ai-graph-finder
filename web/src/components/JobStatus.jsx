@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react'
+import { API_BASE } from '../config'
 
 export default function JobStatus({jobId}){
   const [job, setJob] = useState(null)
@@ -8,8 +9,8 @@ export default function JobStatus({jobId}){
     let mounted = true
     async function poll(){
       try{
-        const base = `${location.protocol}//${location.hostname}:8000`
-        const res = await fetch(`${base}/api/job/${jobId}`)
+        const res = await fetch(`${API_BASE}/api/job/${jobId}`)
+        if(!res.ok) throw new Error(`Job request failed (${res.status})`)
         const data = await res.json()
         if(mounted) setJob(data)
         if(data && data.status && ['pending','running'].includes(data.status)){

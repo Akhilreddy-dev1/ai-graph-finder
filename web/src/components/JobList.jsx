@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react'
+import { API_BASE } from '../config'
 
 export default function JobList({session}){
   const [jobs, setJobs] = useState([])
@@ -7,8 +8,8 @@ export default function JobList({session}){
 
   async function fetchJobs(){
     try{
-      const base = `${location.protocol}//${location.hostname}:8000`
-      const res = await fetch(`${base}/api/session/${session.session_id}/jobs?token=${encodeURIComponent(session.token)}`)
+      const res = await fetch(`${API_BASE}/api/session/${session.session_id}/jobs?token=${encodeURIComponent(session.token)}`)
+      if(!res.ok) throw new Error(`Jobs request failed (${res.status})`)
       const data = await res.json()
       setJobs(data)
     }catch(e){console.error(e)}

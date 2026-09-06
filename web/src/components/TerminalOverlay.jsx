@@ -1,5 +1,6 @@
 import React, {useState} from 'react'
 import JobStatus from './JobStatus'
+import { API_BASE, HAS_BACKEND } from '../config'
 
 export default function TerminalOverlay({session}){
   const [cmd, setCmd] = useState('')
@@ -9,7 +10,7 @@ export default function TerminalOverlay({session}){
   async function submit(e){
     e.preventDefault()
     if(!cmd.trim()) return
-    if(!session || !session.session_id || !session.token){
+    if(!HAS_BACKEND || !session || !session.session_id || !session.token){
       setOutput('Select a created session first (required token).')
       return
     }
@@ -19,8 +20,8 @@ export default function TerminalOverlay({session}){
       form.append('command', cmd.trim())
       form.append('session', session.session_id)
       form.append('token', session.token)
-      const base = `${location.protocol}//${location.hostname}:8000`
-      const res = await fetch(`${base}/api/execute`, {method:'POST', body: form})
+      const res = await fetch(`${API_BASE}/api/execute`, {method:'POST', body: form})
+      if(!res.ok) throw new Error(`Command request failed (${res.status})`)
       const data = await res.json()
       if(data.job_id) setJobId(data.job_id)
       setOutput('Queued — job id: ' + (data.job_id || 'n/a'))

@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
+import { API_BASE, HAS_BACKEND, WS_BASE } from '../config'
 
 const DEMO_GRAPH = {
   nodes: [
@@ -22,19 +23,17 @@ export default function Graph3D({session, onSelect}){
   const wsRef = useRef(null)
 
   useEffect(()=>{
-    if(!session || !session.session_id) return
+    if(!HAS_BACKEND || !session || !session.session_id || !session.token) return
     // fetch initial graph for session (backend should be hosted separately in production)
-    const base = `${location.protocol}//${location.hostname}:8000`
-    fetch(`${base}/api/nodes?session=${encodeURIComponent(session.session_id)}&token=${encodeURIComponent(session.token||'')}`)
-      .then(r=>r.json())
+    fetch(`${API_BASE}/api/nodes?session=${encodeURIComponent(session.session_id)}&token=${encodeURIComponent(session.token)}`)
+      .then(r=>{ if(!r.ok) throw new Error(`Graph request failed (${r.status})`); return r.json() })
       .then(d=>setGraphData({nodes:d.nodes || [], links:d.links || []}))
       .catch((e)=>{
         console.warn('Failed to load session graph, keeping demo:', e)
       })
 
     // connect websocket to backend for this session
-    const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const wsUrl = `${protocol}//${location.hostname}:8000/api/ws?session=${encodeURIComponent(session.session_id)}&token=${encodeURIComponent(session.token||'')}`
+    const wsUrl = `${WS_BASE}/api/ws?session=${encodeURIComponent(session.session_id)}&token=${encodeURIComponent(session.token)}`
     const ws = new WebSocket(wsUrl)
     wsRef.current = ws
 

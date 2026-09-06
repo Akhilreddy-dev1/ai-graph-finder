@@ -33,7 +33,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=False,
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -51,14 +51,6 @@ def require_admin(x_admin_key):
 @app.get('/api/health')
 async def health():
     return {"status": "ok"}
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 
@@ -222,8 +214,13 @@ def run_command_sandboxed(command: str, cwd: Path | str, timeout: int = 6) -> Tu
         else:
             _preexec = None
 
+        process_tokens = tokens
+        if os.name == 'nt' and cmd0 in {'echo', 'dir', 'type'}:
+            # These commands are shell built-ins on Windows, not executables.
+            process_tokens = [os.environ.get('COMSPEC', 'cmd.exe'), '/d', '/c', *tokens]
+
         proc = subprocess.run(
-            tokens,
+            process_tokens,
             cwd=str(cwd),
             env=env,
             stdout=subprocess.PIPE,

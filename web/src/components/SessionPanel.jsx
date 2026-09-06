@@ -1,25 +1,27 @@
 import React, {useEffect, useState} from 'react'
+import { API_BASE, HAS_BACKEND } from '../config'
 
 export default function SessionPanel({session, setSession}){
   const [list, setList] = useState([])
   const [name, setName] = useState('')
 
-  useEffect(()=>{ fetchList() }, [])
+  useEffect(()=>{ if(HAS_BACKEND) fetchList() }, [])
 
   async function fetchList(){
     try{
-      const base = `${location.protocol}//${location.hostname}:8000`
-      const res = await fetch(`${base}/api/sessions`)
+      const res = await fetch(`${API_BASE}/api/sessions`)
+      if(!res.ok) throw new Error(`Session request failed (${res.status})`)
       const data = await res.json()
       setList(data)
     }catch(e){console.error(e)}
   }
 
   async function create(){
+    if(!HAS_BACKEND) return
     try{
-      const base = `${location.protocol}//${location.hostname}:8000`
       const form = new FormData(); if(name) form.append('name', name)
-      const res = await fetch(`${base}/api/session`, {method:'POST', body: form})
+      const res = await fetch(`${API_BASE}/api/session`, {method:'POST', body: form})
+      if(!res.ok) throw new Error(`Session creation failed (${res.status})`)
       const data = await res.json()
       // store token & session in localStorage
       localStorage.setItem('agf_session', JSON.stringify(data))
@@ -49,8 +51,9 @@ export default function SessionPanel({session, setSession}){
       </div>
 
       <div className="mt-3">
+        {!HAS_BACKEND && <p className="mb-2 text-xs text-amber-300">Configure VITE_API_BASE to enable live sessions.</p>}
         <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="New session name" className="w-full bg-[#0b1020] border border-gray-700 rounded px-2 py-1 text-sm" />
-        <button onClick={create} className="mt-2 w-full px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-500 rounded text-white text-sm">Create session</button>
+        <button onClick={create} disabled={!HAS_BACKEND} className="mt-2 w-full px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-500 rounded text-white text-sm disabled:cursor-not-allowed disabled:opacity-50">Create session</button>
       </div>
 
       {session && (

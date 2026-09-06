@@ -2,7 +2,7 @@ name: Deploy Node Studio to GitHub Pages
 
 on:
   push:
-    branches: [ 'akhilreddy-dev1-web-ui-frontend' ]
+    branches: [ main ]
 
 jobs:
   build-and-deploy:
@@ -36,4 +36,3 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./web/dist
-
