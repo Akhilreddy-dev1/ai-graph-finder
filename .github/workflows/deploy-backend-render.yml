@@ -3,7 +3,7 @@
 on:
   workflow_dispatch: {}
   push:
-    branches: [ main, akhilreddy-dev1-web-ui-frontend ]
+    branches: [ main ]
 
 jobs:
   trigger-deploy:
