@@ -274,8 +274,15 @@ async def chat(
             temperature=0.4,
         )
         return {"reply": completion.choices[0].message.content or ""}
-    except Exception:
-        raise HTTPException(status_code=502, detail="Assistant is temporarily unavailable")
+    except Exception as exc:
+        error_text = str(exc).lower()
+        if "401" in error_text or "authentication" in error_text or "invalid api key" in error_text:
+            detail = "Groq API key was rejected. Enter a valid, active key."
+        elif "429" in error_text or "rate limit" in error_text:
+            detail = "Groq rate limit reached. Wait a moment and try again."
+        else:
+            detail = "Assistant could not reach Groq. Check the API key and try again."
+        raise HTTPException(status_code=502, detail=detail)
 
 
 @app.get("/api/demo-graph")
