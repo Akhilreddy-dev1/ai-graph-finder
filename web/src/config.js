@@ -9,7 +9,7 @@ export const API_BASE = envBase || (import.meta.env.DEV ? "" : isLocalHost ? `${
 export const WS_BASE = API_BASE
   ? API_BASE.replace(/^http/, "ws")
   : `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}`
-export const HAS_BACKEND = Boolean(envBase) || isLocalHost || import.meta.env.DEV
+export const HAS_BACKEND = Boolean(envBase) || isLocalHost || import.meta.env.DEV || Boolean(productionApiBase)
 
 export const getAdminKey = () => localStorage.getItem("agf_admin_key") || ""
 export const setAdminKey = (k) => {
