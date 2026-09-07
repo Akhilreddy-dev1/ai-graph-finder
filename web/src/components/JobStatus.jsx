@@ -26,14 +26,14 @@ export default function JobStatus({jobId}){
     return ()=>{ mounted=false }
   },[jobId])
 
-  if(error) return <div className="mt-2 text-xs text-red-300">{error}</div>
+  if(error) return <div className="job-error">{error}</div>
   if(!job) return null
   return (
-    <div className="mt-2 text-sm text-gray-300">
-      <div><strong>Job:</strong> {job.job_id}</div>
-      <div><strong>Status:</strong> {job.status}</div>
-      {job.stdout && <pre className="mt-2 bg-black p-2 text-xs rounded text-green-200 max-h-40 overflow-auto">{job.stdout}</pre>}
-      {job.stderr && <pre className="mt-2 bg-black p-2 text-xs rounded text-red-200 max-h-40 overflow-auto">{job.stderr}</pre>}
+    <div className="job-status-detail">
+      <div><span>JOB</span> <code>{job.job_id}</code></div>
+      <div><span>STATUS</span> <b>{job.status}</b></div>
+      {job.stdout && <pre className="job-output success-output">{job.stdout}</pre>}
+      {job.stderr && <pre className="job-output error-output">{job.stderr}</pre>}
     </div>
   )
 }

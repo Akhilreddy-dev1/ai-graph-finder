@@ -30,22 +30,23 @@ export default function TerminalOverlay({session}){
   }
 
   return (
-    <form onSubmit={submit} className="mt-3">
-      <label className="block text-sm text-gray-300">Command</label>
-      <div className="mt-2 flex gap-2">
+    <form onSubmit={submit} className="terminal-form">
+      <label className="terminal-label" htmlFor="command-input"><span className="prompt-symbol">›</span> Enter a command</label>
+      <div className="terminal-input-row">
         <input
+          id="command-input"
           value={cmd}
           onChange={(e)=>setCmd(e.target.value)}
-          placeholder="e.g. echo hello"
-          className="w-full bg-[#0b1020] border border-gray-700 rounded px-3 py-2 text-sm focus:outline-none"
+          placeholder="echo hello"
+          className="control-input terminal-input"
         />
-        <button disabled={busy} type="submit" className="px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-500 rounded text-white text-sm disabled:opacity-50">
-          {busy ? '…' : 'Run'}
+        <button disabled={busy} type="submit" className="run-button">
+          {busy ? '…' : 'Run command'}
         </button>
       </div>
-      <p className="text-xs text-gray-500 mt-2">Output: <span className="text-gray-200">{output}</span></p>
-      <p className="text-xs text-gray-500 mt-2">Allowed: ls, dir, echo, cat, type, head, tail, wc, grep, python, node</p>
-      {jobId && <div className="mt-2"><JobStatus jobId={jobId} /></div>}
+      {output && <p className="terminal-output"><span>OUTPUT</span>{output}</p>}
+      <p className="allowed-commands">Allowed: ls, dir, echo, cat, type, head, tail, wc, grep, python, node</p>
+      {jobId && <div className="job-result"><JobStatus jobId={jobId} /></div>}
     </form>
   )
 }

@@ -2,7 +2,10 @@ import React from 'react'
 
 export default function DetailsDrawer({node}){
   if(!node) return (
-    <div className="p-3 text-sm text-gray-400">Select a node to see details.</div>
+    <div className="details-empty">
+      <div className="details-empty-icon">◎</div>
+      <p>Select a node to inspect its metadata and output.</p>
+    </div>
   )
 
   const raw = node.raw || {}
@@ -10,24 +13,24 @@ export default function DetailsDrawer({node}){
   const stderr = raw.stderr
 
   return (
-    <div className="p-3">
-      <h3 className="font-semibold text-lg">{node.label}</h3>
-      <p className="text-sm text-gray-300 mt-2">{node.title}</p>
-      <div className="mt-3 text-sm text-gray-400">
-        <div><strong>Node ID:</strong> {node.id}</div>
-        <div className="mt-2">
-          <strong>Color:</strong>{' '}
-          <span style={{background:node.color?.background}} className="inline-block w-4 h-4 align-middle mr-2 rounded-sm"></span>
-          {node.color?.background}
+    <div className="details-content">
+      <div className="node-title-row">
+        <span className="node-color" style={{background:node.color?.background}} />
+        <div>
+          <h3>{node.label}</h3>
+          <p>{node.title || 'No command metadata'}</p>
         </div>
-        {raw.returncode != null && <div className="mt-2"><strong>Exit:</strong> {raw.returncode}</div>}
-        {raw.elapsed != null && <div className="mt-1"><strong>Elapsed:</strong> {Number(raw.elapsed).toFixed(2)}s</div>}
+      </div>
+      <div className="node-meta">
+        <span><b>ID</b> {node.id}</span>
+        {raw.returncode != null && <span><b>EXIT</b> {raw.returncode}</span>}
+        {raw.elapsed != null && <span><b>TIME</b> {Number(raw.elapsed).toFixed(2)}s</span>}
       </div>
       {stdout && (
-        <pre className="mt-3 bg-black p-2 text-xs rounded text-green-200 max-h-40 overflow-auto">{stdout}</pre>
+        <div className="output-block output-success"><span>STDOUT</span><pre>{stdout}</pre></div>
       )}
       {stderr && (
-        <pre className="mt-2 bg-black p-2 text-xs rounded text-red-200 max-h-40 overflow-auto">{stderr}</pre>
+        <div className="output-block output-error"><span>STDERR</span><pre>{stderr}</pre></div>
       )}
     </div>
   )

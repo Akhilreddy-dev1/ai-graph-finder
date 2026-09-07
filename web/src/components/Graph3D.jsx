@@ -31,7 +31,7 @@ function normalizeGraph(data) {
   return { nodes, links }
 }
 
-export default function Graph3D({session, onSelect}){
+export default function Graph3D({session, onSelect, onGraphChange}){
   const fgRef = useRef()
   const [graphData, setGraphData] = useState(DEMO_GRAPH)
   const [connected, setConnected] = useState(false)
@@ -40,6 +40,7 @@ export default function Graph3D({session, onSelect}){
   useEffect(()=>{
     if(!session || !session.session_id || !session.token) {
       setGraphData(DEMO_GRAPH)
+      onGraphChange && onGraphChange({ nodes: DEMO_GRAPH.nodes.length, links: DEMO_GRAPH.links.length })
       setConnected(false)
       return
     }
@@ -49,7 +50,11 @@ export default function Graph3D({session, onSelect}){
 
     fetchGraph(session.session_id, session.token)
       .then((d) => {
-        if (!cancelled) setGraphData(normalizeGraph(d))
+        if (!cancelled) {
+          const next = normalizeGraph(d)
+          setGraphData(next)
+          onGraphChange && onGraphChange({ nodes: next.nodes.length, links: next.links.length })
+        }
       })
       .catch((e) => {
         if (!cancelled) {
@@ -65,7 +70,9 @@ export default function Graph3D({session, onSelect}){
       try{
         const msg = JSON.parse(ev.data)
         if(msg.type === 'update_graph'){
-          setGraphData(normalizeGraph(msg))
+          const next = normalizeGraph(msg)
+          setGraphData(next)
+          onGraphChange && onGraphChange({ nodes: next.nodes.length, links: next.links.length })
         }
       }catch(e){console.error('ws parse',e)}
     })
@@ -90,14 +97,15 @@ export default function Graph3D({session, onSelect}){
   const showDemoBanner = !session || !session.session_id || !session.token
 
   return (
-    <div className="h-[72vh] rounded-lg overflow-hidden relative">
+    <div className="graph-canvas">
       {showDemoBanner && (
-        <div className="absolute top-4 left-4 z-20 bg-black/40 text-gray-100 px-3 py-2 rounded-md text-sm">
+        <div className="graph-notice">
           Demo mode — no backend session. Create a session in the sidebar to enable live updates.
         </div>
       )}
       {!showDemoBanner && (
-        <div className="absolute top-4 left-4 z-20 bg-black/40 text-gray-100 px-3 py-2 rounded-md text-sm">
+        <div className={`graph-notice ${connected ? 'is-connected' : ''}`}>
+          <span className="status-dot" />
           {connected ? 'Live session connected' : HAS_BACKEND ? 'Connecting to backend…' : 'Backend URL not configured'}
           {error ? ` — ${error}` : ''}
         </div>
@@ -119,7 +127,7 @@ export default function Graph3D({session, onSelect}){
         linkDirectionalParticles={2}
         linkDirectionalParticleWidth={1}
         linkDirectionalParticleColor={()=>'rgba(99,102,241,0.9)'}
-        backgroundColor={'#0f0c29'}
+        backgroundColor={'#080b16'}
         onNodeClick={node=>{
           const distance = 120
           const distRatio = 1 + distance/Math.hypot(node.x||0,node.y||0,node.z||0)
