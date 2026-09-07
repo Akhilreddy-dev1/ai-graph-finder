@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
 import { analyzeImage } from '../api'
+import { VISION_MODELS } from '../models'
 
 export default function CameraPanel({ apiKey, setApiKey, onGraph, onClear }) {
   const [file, setFile] = useState(null)
   const [preview, setPreview] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [model, setModel] = useState(VISION_MODELS[0].id)
 
   useEffect(() => {
     if (!file) {
@@ -29,7 +31,7 @@ export default function CameraPanel({ apiKey, setApiKey, onGraph, onClear }) {
     setBusy(true)
     setError('')
     try {
-      const result = await analyzeImage(file, apiKey.trim())
+      const result = await analyzeImage(file, apiKey.trim(), model)
       if (!Array.isArray(result?.x) || !Array.isArray(result?.y)) {
         throw new Error('The image response did not contain chart data.')
       }
@@ -54,6 +56,11 @@ export default function CameraPanel({ apiKey, setApiKey, onGraph, onClear }) {
         className="control-input"
         autoComplete="off"
       />
+      <label className="tool-label" htmlFor="vision-model">Vision model</label>
+      <select id="vision-model" className="control-input" value={model} onChange={(event) => setModel(event.target.value)}>
+        {VISION_MODELS.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
+      </select>
+      <p className="model-caption">Choose the vision model that best matches your chart.</p>
       <label className="upload-dropzone" htmlFor="chart-image">
         {preview ? <img src={preview} alt="Selected chart preview" /> : <span>Choose or capture chart image</span>}
         <input id="chart-image" type="file" accept="image/*" capture="environment" onChange={selectFile} />

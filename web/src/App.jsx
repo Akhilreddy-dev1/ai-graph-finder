@@ -7,6 +7,7 @@ import { HAS_BACKEND } from './config'
 import CameraPanel from './components/CameraPanel'
 import ManualGraphBuilder from './components/ManualGraphBuilder'
 import AssistantPanel from './components/AssistantPanel'
+import LandingPage from './components/LandingPage'
 
 function SignalIcon() {
   return (
@@ -25,6 +26,7 @@ function SparkIcon() {
 }
 
 export default function App(){
+  const [showLanding, setShowLanding] = useState(() => window.location.hash !== '#studio')
   const [selected, setSelected] = useState(null)
   const [graphStats, setGraphStats] = useState({ nodes: 4, links: 3 })
   const [backendOk, setBackendOk] = useState(null)
@@ -50,6 +52,18 @@ export default function App(){
     return ()=>{ mounted=false }
   },[])
 
+  function enterStudio() {
+    window.history.replaceState(null, '', '#studio')
+    setShowLanding(false)
+  }
+
+  function returnToOverview() {
+    window.history.replaceState(null, '', window.location.pathname)
+    setShowLanding(true)
+  }
+
+  if (showLanding) return <LandingPage onEnter={enterStudio} />
+
   return (
     <div className="app-shell min-h-screen text-slate-100">
       <div className="ambient ambient-purple" />
@@ -68,6 +82,7 @@ export default function App(){
             <span className={`status-dot ${backendOk ? 'is-online' : backendOk === false ? 'is-warn' : ''}`} />
             {backendOk ? 'API connected' : backendOk === false ? (HAS_BACKEND ? 'API offline' : 'Demo mode') : 'Checking API'}
           </div>
+          <button type="button" className="overview-button" onClick={returnToOverview}>Overview</button>
           <div className="topbar-meta">v0.1 <span className="meta-separator">•</span> Graph workspace</div>
         </div>
       </header>

@@ -1,6 +1,8 @@
 import asyncio
 import base64
 import json
+import logging
+import math
 import os
 import re
 import secrets
@@ -28,13 +30,32 @@ from groq import Groq
 
 import db
 
+logger = logging.getLogger("ai_graph_finder")
+
 try:
     import resource
 except Exception:
     resource = None
 
-VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+# Keep this list intentionally explicit. It prevents a client from selecting an
+# arbitrary provider model while making model support discoverable in the UI.
+VISION_MODELS = {
+    "meta-llama/llama-4-scout-17b-16e-instruct": "Llama 4 Scout · vision",
+    "meta-llama/llama-4-maverick-17b-128e-instruct": "Llama 4 Maverick · vision",
+}
+CHAT_MODELS = {
+    "llama-3.3-70b-versatile": "Llama 3.3 70B · quality",
+    "llama-3.1-8b-instant": "Llama 3.1 8B · fast",
+    "openai/gpt-oss-120b": "GPT OSS 120B · reasoning",
+    "openai/gpt-oss-20b": "GPT OSS 20B · fast reasoning",
+    "qwen/qwen3-32b": "Qwen 3 32B · multilingual",
+    "moonshotai/kimi-k2-instruct": "Kimi K2 · long context",
+    **VISION_MODELS,
+}
+VISION_MODEL = next(iter(VISION_MODELS))
 CHAT_MODEL = "llama-3.3-70b-versatile"
+MAX_IMAGE_BYTES = 12 * 1024 * 1024
+MAX_CHART_POINTS = 5_000
 
 ALLOWED_ORIGINS = [
     o.strip()
@@ -123,10 +144,82 @@ def require_admin(x_admin_key: Optional[str]):
 
 
 def extract_json(raw: str) -> dict:
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if not match:
-        raise ValueError("No JSON object found in AI response.")
-    return json.loads(match.group(0))
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r"\{", raw):
+        try:
+            value, _ = decoder.raw_decode(raw[match.start() :])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            return value
+    raise ValueError("No JSON object found in AI response.")
+
+
+def select_model(model: Optional[str], allowed: dict[str, str], default: str) -> str:
+    selected = (model or "").strip() or default
+    if selected not in allowed:
+        available = ", ".join(allowed)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported model '{selected}'. Choose one of: {available}",
+        )
+    return selected
+
+
+def numeric_values(values: object, name: str) -> list[float | int]:
+    if not isinstance(values, list) or not values:
+        raise ValueError(f"Response did not contain a non-empty {name} array")
+    if len(values) > MAX_CHART_POINTS:
+        raise ValueError(f"Response contained too many {name} values")
+    result = []
+    for value in values:
+        if isinstance(value, bool):
+            raise ValueError(f"{name} values must be numbers")
+        try:
+            number = float(value)
+        except (TypeError, ValueError):
+            raise ValueError(f"{name} values must be numbers") from None
+        if not math.isfinite(number):
+            raise ValueError(f"{name} values must be finite")
+        result.append(int(number) if number.is_integer() else number)
+    return result
+
+
+def normalize_chart_result(result: object) -> dict:
+    if not isinstance(result, dict):
+        raise ValueError("AI response was not a JSON object")
+    x = numeric_values(result.get("x"), "x")
+    y = numeric_values(result.get("y"), "y")
+    if len(x) != len(y):
+        raise ValueError("Response contained mismatched x and y arrays")
+    z = result.get("z")
+    normalized_z = None if z is None else numeric_values(z, "z")
+    if normalized_z is not None and len(normalized_z) != len(x):
+        raise ValueError("Response contained mismatched z values")
+    chart_type = result.get("chart_type", "line")
+    if chart_type not in {"line", "bar", "scatter", "3d"}:
+        chart_type = "line"
+    label = result.get("label", "Detected graph")
+    if not isinstance(label, str):
+        label = "Detected graph"
+    return {
+        "x": x,
+        "y": y,
+        "z": normalized_z,
+        "label": label.strip()[:200] or "Detected graph",
+        "chart_type": chart_type,
+    }
+
+
+def groq_detail(exc: Exception, action: str) -> str:
+    text = str(exc).lower()
+    if "401" in text or "authentication" in text or "invalid api key" in text:
+        return "Groq API key was rejected. Enter a valid, active key."
+    if "429" in text or "rate limit" in text:
+        return "Groq rate limit reached. Wait a moment and try again."
+    if "model" in text and ("not found" in text or "unsupported" in text):
+        return "That Groq model is unavailable. Choose another supported model."
+    return f"Groq {action} is temporarily unavailable. Try again shortly."
 
 
 def contains_shell_metachar(s: str) -> bool:
@@ -193,17 +286,33 @@ async def health():
     return {"status": "ok"}
 
 
+@app.get("/api/models")
+async def models():
+    return {
+        "defaults": {"vision": VISION_MODEL, "chat": CHAT_MODEL},
+        "vision": [{"id": key, "label": value} for key, value in VISION_MODELS.items()],
+        "chat": [{"id": key, "label": value} for key, value in CHAT_MODELS.items()],
+    }
+
+
 @app.post("/api/analyze-image")
-async def analyze_image(api_key: str = Form(...), file: UploadFile = File(...)):
+async def analyze_image(
+    api_key: str = Form(...),
+    file: UploadFile = File(...),
+    model: Optional[str] = Form(None),
+):
     if not api_key or not api_key.strip():
         raise HTTPException(status_code=400, detail="Missing or invalid API key")
     if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Please upload an image file")
+    selected_model = select_model(model, VISION_MODELS, VISION_MODEL)
 
     try:
         image_bytes = await file.read()
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Uploaded image is empty")
+        if len(image_bytes) > MAX_IMAGE_BYTES:
+            raise HTTPException(status_code=413, detail="Image is too large. Please upload an image under 12 MB.")
         client = Groq(api_key=api_key.strip())
         b64 = base64.b64encode(image_bytes).decode("utf-8")
         prompt = (
@@ -216,7 +325,7 @@ async def analyze_image(api_key: str = Form(...), file: UploadFile = File(...)):
             "No markdown, no explanation — JSON only."
         )
         completion = client.chat.completions.create(
-            model=VISION_MODEL,
+            model=selected_model,
             messages=[
                 {
                     "role": "user",
@@ -229,20 +338,15 @@ async def analyze_image(api_key: str = Form(...), file: UploadFile = File(...)):
             temperature=0.1,
         )
         raw = (completion.choices[0].message.content or "").strip()
-        result = extract_json(raw)
-        if not isinstance(result.get("x"), list) or not isinstance(result.get("y"), list):
-            raise ValueError("Response did not contain x and y arrays")
-        if len(result["x"]) != len(result["y"]) or not result["x"]:
-            raise ValueError("Response contained mismatched or empty chart arrays")
-        if result.get("z") is not None and (
-            not isinstance(result["z"], list) or len(result["z"]) != len(result["x"])
-        ):
-            raise ValueError("Response contained mismatched z values")
-        return result
+        return normalize_chart_result(extract_json(raw))
     except HTTPException:
         raise
-    except Exception:
-        raise HTTPException(status_code=502, detail="Image analysis is temporarily unavailable")
+    except ValueError as exc:
+        logger.warning("Image analysis returned invalid chart data: %s", exc)
+        raise HTTPException(status_code=502, detail="Groq returned unusable chart data. Try a clearer image.") from exc
+    except Exception as exc:
+        logger.exception("Image analysis request failed")
+        raise HTTPException(status_code=502, detail=groq_detail(exc, "image analysis")) from exc
 
 
 @app.post("/api/chat")
@@ -250,11 +354,13 @@ async def chat(
     api_key: str = Form(...),
     question: str = Form(...),
     graph_context: Optional[str] = Form(None),
+    model: Optional[str] = Form(None),
 ):
     if not api_key or not api_key.strip():
         raise HTTPException(status_code=400, detail="Missing or invalid API key")
     if not question or not question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
+    selected_model = select_model(model, CHAT_MODELS, CHAT_MODEL)
 
     try:
         client = Groq(api_key=api_key.strip())
@@ -266,7 +372,7 @@ async def chat(
         if graph_context:
             system += f"\n\nCurrent graph data: {graph_context[:12000]}"
         completion = client.chat.completions.create(
-            model=CHAT_MODEL,
+            model=selected_model,
             messages=[
                 {"role": "system", "content": system},
                 {"role": "user", "content": question.strip()},
@@ -275,14 +381,8 @@ async def chat(
         )
         return {"reply": completion.choices[0].message.content or ""}
     except Exception as exc:
-        error_text = str(exc).lower()
-        if "401" in error_text or "authentication" in error_text or "invalid api key" in error_text:
-            detail = "Groq API key was rejected. Enter a valid, active key."
-        elif "429" in error_text or "rate limit" in error_text:
-            detail = "Groq rate limit reached. Wait a moment and try again."
-        else:
-            detail = "Assistant could not reach Groq. Check the API key and try again."
-        raise HTTPException(status_code=502, detail=detail)
+        logger.exception("Assistant request failed")
+        raise HTTPException(status_code=502, detail=groq_detail(exc, "assistant")) from exc
 
 
 @app.get("/api/demo-graph")

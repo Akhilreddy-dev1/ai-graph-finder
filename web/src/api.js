@@ -67,19 +67,21 @@ export async function fetchDemoGraph() {
   return parseResponse(res)
 }
 
-export async function analyzeImage(file, apiKey) {
+export async function analyzeImage(file, apiKey, model) {
   const form = new FormData()
   form.append("api_key", apiKey)
   form.append("file", file)
+  if (model) form.append("model", model)
   const res = await fetch(apiUrl("/api/analyze-image"), { method: "POST", body: form })
   return parseResponse(res)
 }
 
-export async function chat(question, apiKey, graphContext = "") {
+export async function chat(question, apiKey, graphContext = "", model) {
   const form = new FormData()
   form.append("api_key", apiKey)
   form.append("question", question)
   if (graphContext) form.append("graph_context", graphContext)
+  if (model) form.append("model", model)
   const res = await fetch(apiUrl("/api/chat"), { method: "POST", body: form })
   return parseResponse(res)
 }
