@@ -3,6 +3,7 @@ import ForceGraph3D from 'react-force-graph-3d'
 import SpriteText from 'three-spritetext'
 import { fetchGraph } from '../api'
 import { HAS_BACKEND, wsUrl } from '../config'
+import { chartToGraph } from '../graphUtils'
 
 const DEMO_GRAPH = {
   nodes: [
@@ -31,13 +32,23 @@ function normalizeGraph(data) {
   return { nodes, links }
 }
 
-export default function Graph3D({session, onSelect, onSessionInvalid, onGraphChange}){
+export default function Graph3D({session, onSelect, onSessionInvalid, onGraphChange, graphOverride}){
   const fgRef = useRef()
   const [graphData, setGraphData] = useState(DEMO_GRAPH)
   const [connected, setConnected] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(()=>{
+    if(!graphOverride) return
+    const next = graphOverride.nodes ? normalizeGraph(graphOverride) : chartToGraph(graphOverride)
+    if(next){
+      setGraphData(next)
+      onGraphChange && onGraphChange({ nodes: next.nodes.length, links: next.links.length })
+    }
+  },[graphOverride])
+
+  useEffect(()=>{
+    if(graphOverride) return
     if(!session || !session.session_id || !session.token) {
       setGraphData(DEMO_GRAPH)
       onGraphChange && onGraphChange({ nodes: DEMO_GRAPH.nodes.length, links: DEMO_GRAPH.links.length })
@@ -87,7 +98,7 @@ export default function Graph3D({session, onSelect, onSessionInvalid, onGraphCha
       cancelled = true
       try{ ws.close() }catch(e){}
     }
-  },[session])
+  },[session, graphOverride])
 
   useEffect(()=>{
     if(fgRef.current && graphData.nodes.length){

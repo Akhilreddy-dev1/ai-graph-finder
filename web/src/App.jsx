@@ -5,6 +5,9 @@ import DetailsDrawer from './components/DetailsDrawer'
 import SessionPanel from './components/SessionPanel'
 import { healthCheck } from './api'
 import { HAS_BACKEND } from './config'
+import CameraPanel from './components/CameraPanel'
+import ManualGraphBuilder from './components/ManualGraphBuilder'
+import AssistantPanel from './components/AssistantPanel'
 
 function SignalIcon() {
   return (
@@ -26,6 +29,9 @@ export default function App(){
   const [selected, setSelected] = useState(null)
   const [graphStats, setGraphStats] = useState({ nodes: 4, links: 3 })
   const [backendOk, setBackendOk] = useState(null)
+  const [graphOverride, setGraphOverride] = useState(null)
+  const [activeTool, setActiveTool] = useState('camera')
+  const [groqKey, setGroqKey] = useState(()=>localStorage.getItem('agf_groq_key') || '')
   const [session, setSession] = useState(()=>{
     try{ return JSON.parse(localStorage.getItem('agf_session')||'null') }catch(e){return null}
   })
@@ -34,6 +40,8 @@ export default function App(){
     if(session) localStorage.setItem('agf_session', JSON.stringify(session))
     else localStorage.removeItem('agf_session')
   },[session])
+
+  useEffect(()=>{ localStorage.setItem('agf_groq_key', groqKey) },[groqKey])
 
   useEffect(()=>{
     let mounted = true
@@ -95,6 +103,7 @@ export default function App(){
             </div>
             <Graph3D
               session={session}
+              graphOverride={graphOverride}
               onSelect={setSelected}
               onSessionInvalid={() => setSession(null)}
               onGraphChange={setGraphStats}
@@ -138,6 +147,23 @@ export default function App(){
               </div>
             </div>
             <DetailsDrawer node={selected} />
+          </div>
+          <div className="panel-card tools-card">
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">GRAPH LAB</p>
+                <h3>Build &amp; ask</h3>
+              </div>
+              <span className="panel-icon"><SparkIcon /></span>
+            </div>
+            <div className="tool-tabs" role="tablist" aria-label="Graph tools">
+              <button className={activeTool === 'camera' ? 'is-active' : ''} onClick={() => setActiveTool('camera')} role="tab">Scan</button>
+              <button className={activeTool === 'manual' ? 'is-active' : ''} onClick={() => setActiveTool('manual')} role="tab">Manual</button>
+              <button className={activeTool === 'assistant' ? 'is-active' : ''} onClick={() => setActiveTool('assistant')} role="tab">AI chat</button>
+            </div>
+            {activeTool === 'camera' && <CameraPanel apiKey={groqKey} setApiKey={setGroqKey} onGraph={setGraphOverride} onClear={() => setGraphOverride(null)} />}
+            {activeTool === 'manual' && <ManualGraphBuilder onGraph={setGraphOverride} onClear={() => setGraphOverride(null)} />}
+            {activeTool === 'assistant' && <AssistantPanel apiKey={groqKey} setApiKey={setGroqKey} graph={graphOverride} />}
           </div>
         </aside>
       </main>

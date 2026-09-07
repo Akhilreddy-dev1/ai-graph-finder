@@ -80,3 +80,20 @@ export async function fetchDemoGraph() {
   const res = await fetch(apiUrl("/api/demo-graph"))
   return parseResponse(res)
 }
+
+export async function analyzeImage(file, apiKey) {
+  const form = new FormData()
+  form.append("api_key", apiKey)
+  form.append("file", file)
+  const res = await fetch(apiUrl("/api/analyze-image"), { method: "POST", body: form })
+  return parseResponse(res)
+}
+
+export async function chat(question, apiKey, graphContext = "") {
+  const form = new FormData()
+  form.append("api_key", apiKey)
+  form.append("question", question)
+  if (graphContext) form.append("graph_context", graphContext)
+  const res = await fetch(apiUrl("/api/chat"), { method: "POST", body: form })
+  return parseResponse(res)
+}

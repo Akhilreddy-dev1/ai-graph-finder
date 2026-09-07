@@ -195,68 +195,87 @@ async def health():
 
 @app.post("/api/analyze-image")
 async def analyze_image(api_key: str = Form(...), file: UploadFile = File(...)):
-    client = Groq(api_key=api_key) if api_key else None
-    if not client:
+    if not api_key or not api_key.strip():
         raise HTTPException(status_code=400, detail="Missing or invalid API key")
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Please upload an image file")
 
-    image_bytes = await file.read()
-    b64 = base64.b64encode(image_bytes).decode("utf-8")
-    prompt = (
-        "Analyze this graph/chart image. Return ONLY a JSON object with these keys:\n"
-        "  x: list of numbers (x-axis values)\n"
-        "  y: list of numbers (y-axis values, same length as x)\n"
-        "  z: list of numbers OR null (only if this is a 3D chart)\n"
-        "  label: string title for the graph\n"
-        "  chart_type: one of 'line', 'bar', 'scatter', '3d'\n"
-        "No markdown, no explanation — JSON only."
-    )
-    completion = client.chat.completions.create(
-        model=VISION_MODEL,
-        messages=[
-            {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
-                ],
-            }
-        ],
-        temperature=0.1,
-    )
-    raw = (completion.choices[0].message.content or "").strip()
     try:
-        return extract_json(raw)
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"AI returned invalid JSON: {exc}")
+        image_bytes = await file.read()
+        if not image_bytes:
+            raise HTTPException(status_code=400, detail="Uploaded image is empty")
+        client = Groq(api_key=api_key.strip())
+        b64 = base64.b64encode(image_bytes).decode("utf-8")
+        prompt = (
+            "Analyze this graph/chart image. Return ONLY a JSON object with these keys:\n"
+            "  x: list of numbers (x-axis values)\n"
+            "  y: list of numbers (y-axis values, same length as x)\n"
+            "  z: list of numbers OR null (only if this is a 3D chart)\n"
+            "  label: string title for the graph\n"
+            "  chart_type: one of 'line', 'bar', 'scatter', '3d'\n"
+            "No markdown, no explanation — JSON only."
+        )
+        completion = client.chat.completions.create(
+            model=VISION_MODEL,
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {"type": "image_url", "image_url": {"url": f"data:{file.content_type};base64,{b64}"}},
+                    ],
+                }
+            ],
+            temperature=0.1,
+        )
+        raw = (completion.choices[0].message.content or "").strip()
+        result = extract_json(raw)
+        if not isinstance(result.get("x"), list) or not isinstance(result.get("y"), list):
+            raise ValueError("Response did not contain x and y arrays")
+        if len(result["x"]) != len(result["y"]) or not result["x"]:
+            raise ValueError("Response contained mismatched or empty chart arrays")
+        if result.get("z") is not None and (
+            not isinstance(result["z"], list) or len(result["z"]) != len(result["x"])
+        ):
+            raise ValueError("Response contained mismatched z values")
+        return result
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=502, detail="Image analysis is temporarily unavailable")
 
 
 @app.post("/api/chat")
 async def chat(
     api_key: str = Form(...),
     question: str = Form(...),
-    graph_context: str = Form(None),
+    graph_context: Optional[str] = Form(None),
 ):
-    client = Groq(api_key=api_key) if api_key else None
-    if not client:
+    if not api_key or not api_key.strip():
         raise HTTPException(status_code=400, detail="Missing or invalid API key")
+    if not question or not question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
 
-    system = (
-        "You are an expert math and data visualization assistant. "
-        "Help users understand graphs, equations, and data trends. "
-        "Be concise and friendly."
-    )
-    if graph_context:
-        system += f"\n\nCurrent graph data: {graph_context}"
-
-    completion = client.chat.completions.create(
-        model=CHAT_MODEL,
-        messages=[
-            {"role": "system", "content": system},
-            {"role": "user", "content": question},
-        ],
-        temperature=0.4,
-    )
-    return {"reply": completion.choices[0].message.content}
+    try:
+        client = Groq(api_key=api_key.strip())
+        system = (
+            "You are an expert math and data visualization assistant. "
+            "Help users understand graphs, equations, and data trends. "
+            "Be concise and friendly."
+        )
+        if graph_context:
+            system += f"\n\nCurrent graph data: {graph_context[:12000]}"
+        completion = client.chat.completions.create(
+            model=CHAT_MODEL,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": question.strip()},
+            ],
+            temperature=0.4,
+        )
+        return {"reply": completion.choices[0].message.content or ""}
+    except Exception:
+        raise HTTPException(status_code=502, detail="Assistant is temporarily unavailable")
 
 
 @app.get("/api/demo-graph")
