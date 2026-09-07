@@ -31,7 +31,7 @@ function normalizeGraph(data) {
   return { nodes, links }
 }
 
-export default function Graph3D({session, onSelect, onGraphChange}){
+export default function Graph3D({session, onSelect, onSessionInvalid, onGraphChange}){
   const fgRef = useRef()
   const [graphData, setGraphData] = useState(DEMO_GRAPH)
   const [connected, setConnected] = useState(false)
@@ -59,6 +59,9 @@ export default function Graph3D({session, onSelect, onGraphChange}){
       .catch((e) => {
         if (!cancelled) {
           setError(e.message || 'Failed to load graph')
+          if (e.message === 'Invalid session or token') {
+            onSessionInvalid && onSessionInvalid()
+          }
           console.warn('Failed to load session graph, keeping demo:', e)
         }
       })
@@ -106,8 +109,7 @@ export default function Graph3D({session, onSelect, onGraphChange}){
       {!showDemoBanner && (
         <div className={`graph-notice ${connected ? 'is-connected' : ''}`}>
           <span className="status-dot" />
-          {connected ? 'Live session connected' : HAS_BACKEND ? 'Connecting to backend…' : 'Backend URL not configured'}
-          {error ? ` — ${error}` : ''}
+          {connected ? 'Live session connected' : error || (HAS_BACKEND ? 'Connecting to backend…' : 'Backend URL not configured')}
         </div>
       )}
 

@@ -93,7 +93,12 @@ export default function App(){
               <div className="toolbar-label"><SignalIcon /> {session ? 'SESSION STREAM' : 'LOCAL PREVIEW'}</div>
               <div className="toolbar-hint">Drag to orbit <span>•</span> Scroll to zoom <span>•</span> Click a node</div>
             </div>
-            <Graph3D session={session} onSelect={setSelected} onGraphChange={setGraphStats} />
+            <Graph3D
+              session={session}
+              onSelect={setSelected}
+              onSessionInvalid={() => setSession(null)}
+              onGraphChange={setGraphStats}
+            />
             <div className="graph-legend">
               <span><i className="legend-dot legend-root" /> Root</span>
               <span><i className="legend-dot legend-process" /> Process</span>
