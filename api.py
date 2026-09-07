@@ -44,6 +44,8 @@ ALLOWED_ORIGINS = [
     ).split(",")
     if o.strip()
 ]
+if "https://akhilreddy-dev1.github.io" not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append("https://akhilreddy-dev1.github.io")
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
 
 ALLOWED_COMMANDS = {
