@@ -1,6 +1,5 @@
 import React, {useEffect, useState} from 'react'
 import Graph3D from './components/Graph3D'
-import TerminalOverlay from './components/TerminalOverlay'
 import DetailsDrawer from './components/DetailsDrawer'
 import SessionPanel from './components/SessionPanel'
 import { healthCheck } from './api'
@@ -69,7 +68,7 @@ export default function App(){
             <span className={`status-dot ${backendOk ? 'is-online' : backendOk === false ? 'is-warn' : ''}`} />
             {backendOk ? 'API connected' : backendOk === false ? (HAS_BACKEND ? 'API offline' : 'Demo mode') : 'Checking API'}
           </div>
-          <div className="topbar-meta">v0.1 <span className="meta-separator">•</span> Command center</div>
+          <div className="topbar-meta">v0.1 <span className="meta-separator">•</span> Graph workspace</div>
         </div>
       </header>
 
@@ -79,7 +78,7 @@ export default function App(){
             <div>
               <p className="eyebrow accent">LIVE TOPOLOGY</p>
               <h2>Explore your execution graph</h2>
-              <p className="hero-copy">Trace commands, outputs, and relationships in an interactive 3D workspace.</p>
+              <p className="hero-copy">Read relationships, artifacts, and live activity in an interactive 3D workspace.</p>
             </div>
             <div className="hero-stats">
               <div className="stat-card">
@@ -126,17 +125,6 @@ export default function App(){
               <span className="panel-icon"><SignalIcon /></span>
             </div>
             <SessionPanel session={session} setSession={setSession} />
-          </div>
-
-          <div className="panel-card command-card">
-            <div className="panel-heading">
-              <div>
-                <p className="eyebrow">EXECUTION</p>
-                <h3>Command console</h3>
-              </div>
-              <span className="console-key">⌘ K</span>
-            </div>
-            <TerminalOverlay session={session} />
           </div>
 
           <div className="panel-card details-card">

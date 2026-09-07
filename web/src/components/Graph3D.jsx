@@ -1,6 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react'
 import ForceGraph3D from 'react-force-graph-3d'
-import SpriteText from 'three-spritetext'
+import * as THREE from 'three'
 import { fetchGraph } from '../api'
 import { HAS_BACKEND, wsUrl } from '../config'
 import { chartToGraph } from '../graphUtils'
@@ -17,6 +17,15 @@ const DEMO_GRAPH = {
     { source: 'n1', target: 'n3' },
     { source: 'n3', target: 'n4' }
   ]
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
 }
 
 function normalizeGraph(data) {
@@ -127,19 +136,43 @@ export default function Graph3D({session, onSelect, onSessionInvalid, onGraphCha
       <ForceGraph3D
         ref={fgRef}
         graphData={graphData}
-        nodeAutoColorBy={n=>n.color?.background || '#8b5cf6'}
-        nodeThreeObject={node => {
-          const sprite = new SpriteText(node.label)
-          sprite.color = node.color?.background || '#e5e7eb'
-          sprite.textHeight = 8
-          return sprite
+        nodeLabel={node => {
+          const label = escapeHtml(node.label || node.id)
+          const kind = escapeHtml(node.type || node.kind || 'graph node')
+          return `<div class="graph-tooltip"><strong>${label}</strong><span>${kind}</span></div>`
         }}
-        nodeThreeObjectExtend={true}
-        linkWidth={1.5}
-        linkColor={()=>'rgba(148,163,184,0.6)'}
-        linkDirectionalParticles={2}
-        linkDirectionalParticleWidth={1}
-        linkDirectionalParticleColor={()=>'rgba(99,102,241,0.9)'}
+        nodeThreeObject={node => {
+          const color = node.color?.background || '#8b5cf6'
+          const radius = node.id === 'n1' || node.type === 'root' ? 6.5 : 4.8
+          return new THREE.Mesh(
+            new THREE.SphereGeometry(radius, 24, 24),
+            new THREE.MeshStandardMaterial({
+              color,
+              emissive: color,
+              emissiveIntensity: 0.3,
+              metalness: 0.28,
+              roughness: 0.34,
+            }),
+          )
+        }}
+        nodeThreeObjectExtend={false}
+        linkWidth={1.15}
+        linkColor={()=>'rgba(148,163,184,0.38)'}
+        linkDirectionalParticles={3}
+        linkDirectionalParticleWidth={1.4}
+        linkDirectionalParticleColor={()=>'rgba(129,140,248,0.85)'}
+        linkDirectionalParticleSpeed={0.006}
+        d3VelocityDecay={0.28}
+        warmupTicks={80}
+        cooldownTicks={120}
+        onRenderFramePre={scene => {
+          if (scene.userData.graphStudioLighting) return
+          scene.add(new THREE.HemisphereLight('#c4d2ff', '#080b16', 1.7))
+          const keyLight = new THREE.DirectionalLight('#ffffff', 2.3)
+          keyLight.position.set(120, 160, 100)
+          scene.add(keyLight)
+          scene.userData.graphStudioLighting = true
+        }}
         backgroundColor={'#080b16'}
         onNodeClick={node=>{
           const distance = 120

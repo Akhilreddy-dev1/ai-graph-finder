@@ -55,20 +55,6 @@ export async function fetchGraph(sessionId, token) {
   return parseResponse(res)
 }
 
-export async function executeCommand(command, sessionId, token) {
-  const form = new FormData()
-  form.append("command", command)
-  form.append("session", sessionId)
-  form.append("token", token)
-  const res = await fetch(apiUrl("/api/execute"), { method: "POST", body: form })
-  return parseResponse(res)
-}
-
-export async function fetchJob(jobId) {
-  const res = await fetch(apiUrl(`/api/job/${encodeURIComponent(jobId)}`))
-  return parseResponse(res)
-}
-
 export async function fetchSessionJobs(sessionId, token) {
   const res = await fetch(
     apiUrl(`/api/session/${encodeURIComponent(sessionId)}/jobs?token=${encodeURIComponent(token || "")}`)

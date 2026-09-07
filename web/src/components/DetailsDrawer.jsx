@@ -18,7 +18,7 @@ export default function DetailsDrawer({node}){
         <span className="node-color" style={{background:node.color?.background}} />
         <div>
           <h3>{node.label}</h3>
-          <p>{node.title || 'No command metadata'}</p>
+          <p>{node.title || 'No additional metadata'}</p>
         </div>
       </div>
       <div className="node-meta">

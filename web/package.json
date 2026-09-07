@@ -10,10 +10,9 @@
   "dependencies": {
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "vis-network": "^9.1.2",
-    "three": "^0.158.0",
     "react-force-graph-3d": "^1.29.1",
-    "three-spritetext": "^1.10.0"
+    "three": "^0.158.0",
+    "vis-network": "^9.1.2"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.0.0",
