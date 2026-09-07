@@ -177,7 +177,7 @@ def numeric_values(values: object, name: str) -> list[float | int]:
             raise ValueError(f"{name} values must be numbers")
         try:
             number = float(value)
-        except (TypeError, ValueError):
+        except (OverflowError, TypeError, ValueError):
             raise ValueError(f"{name} values must be numbers") from None
         if not math.isfinite(number):
             raise ValueError(f"{name} values must be finite")
