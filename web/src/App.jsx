@@ -5,26 +5,7 @@ import AIAssistant from './components/AIAssistant'
 import NodeStudio from './components/NodeStudio'
 import { healthCheck, CLIENT_PRESETS } from './api'
 import { HAS_BACKEND } from './config'
-import CameraPanel from './components/CameraPanel'
-import ManualGraphBuilder from './components/ManualGraphBuilder'
-import AssistantPanel from './components/AssistantPanel'
-import LandingPage from './components/LandingPage'
 
-function SignalIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="M5 19a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0-7a9 9 0 0 1 9 9m-9-16a16 16 0 0 1 16 16" />
-    </svg>
-  )
-}
-
-function SparkIcon() {
-  return (
-    <svg viewBox="0 0 24 24" aria-hidden="true">
-      <path d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2Zm7 14 .8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8L19 16Z" />
-    </svg>
-  )
-}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('studio') // 'studio', 'chat', 'nodes'
@@ -79,17 +60,6 @@ export default function App() {
     }
   }, [])
 
-  function enterStudio() {
-    window.history.replaceState(null, '', '#studio')
-    setShowLanding(false)
-  }
-
-  function returnToOverview() {
-    window.history.replaceState(null, '', window.location.pathname)
-    setShowLanding(true)
-  }
-
-  if (showLanding) return <LandingPage onEnter={enterStudio} />
 
   return (
     <div className="min-h-screen bg-[#080c16] text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
