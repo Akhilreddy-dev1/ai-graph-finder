@@ -76,48 +76,50 @@ export default function SessionPanel({session, setSession}){
   }
 
   return (
-    <div className="p-3">
-      <h3 className="text-sm font-medium">Sessions</h3>
-      <div className="mt-2 space-y-2">
+    <div className="session-panel">
+      <div className="session-list">
         {list.map(s=> (
-          <button key={s.session_id} onClick={()=>pick(s)} className="w-full text-left p-2 bg-gray-800 rounded text-sm hover:bg-gray-700">
-            {s.name || s.session_id}
+          <button key={s.session_id} onClick={()=>pick(s)} className="session-item">
+            <span className="session-avatar">{(s.name || s.session_id).slice(0, 1).toUpperCase()}</span>
+            <span className="session-name">{s.name || s.session_id}</span>
+            <span className="session-arrow">↗</span>
           </button>
         ))}
-        {!list.length && <p className="text-xs text-gray-500">No sessions yet. Create one below.</p>}
+        {!list.length && <p className="empty-state">No sessions yet. Create one below.</p>}
       </div>
 
-      <div className="mt-3">
-        <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="New session name" className="w-full bg-[#0b1020] border border-gray-700 rounded px-2 py-1 text-sm" />
-        <button disabled={busy} onClick={create} className="mt-2 w-full px-3 py-2 bg-gradient-to-r from-purple-600 to-indigo-500 rounded text-white text-sm disabled:opacity-50">
-          {busy ? 'Working…' : 'Create session'}
+      <div className="session-create">
+        <input value={name} onChange={(e)=>setName(e.target.value)} placeholder="Name a new session" className="control-input" />
+        <button disabled={busy} onClick={create} className="primary-button">
+          <span>+</span>{busy ? 'Working…' : 'Create session'}
         </button>
       </div>
 
       {session && (
-        <div className="mt-3 text-xs text-gray-400">
-          <div><strong>Active:</strong> {session.name || session.session_id}</div>
-          <div className="mt-1">session: <code className="text-xs">{session.session_id}</code></div>
-          {!session.token && <div className="mt-1 text-amber-400">Missing token — create a new session.</div>}
-          <div className="mt-2 flex gap-2">
-            <button onClick={disconnect} className="flex-1 px-2 py-1 bg-gray-800 rounded">Disconnect</button>
-            <button onClick={clearActive} className="flex-1 px-2 py-1 bg-gray-800 rounded">Clear</button>
+        <div className="active-session">
+          <div className="active-session-label"><span className="status-dot is-online" /> Active session</div>
+          <strong>{session.name || session.session_id}</strong>
+          <code>{session.session_id}</code>
+          {!session.token && <div className="warning-copy">Missing token — create a new session.</div>}
+          <div className="session-actions">
+            <button onClick={disconnect} className="secondary-button">Disconnect</button>
+            <button onClick={clearActive} className="secondary-button">Clear</button>
           </div>
         </div>
       )}
 
-      <details className="mt-3 text-xs text-gray-500">
-        <summary className="cursor-pointer">Admin key (optional)</summary>
+      <details className="admin-details">
+        <summary>Admin key <span>(optional)</span></summary>
         <input
           value={adminKey}
           onChange={(e)=>setAdminKeyInput(e.target.value)}
           placeholder="X-Admin-Key"
-          className="mt-2 w-full bg-[#0b1020] border border-gray-700 rounded px-2 py-1 text-sm"
+          className="control-input"
         />
-        <button onClick={saveKey} className="mt-2 w-full px-2 py-1 bg-gray-800 rounded">Save key</button>
+        <button onClick={saveKey} className="secondary-button save-key">Save key</button>
       </details>
 
-      {status && <p className="mt-2 text-xs text-amber-300">{status}</p>}
+      {status && <p className="status-copy">{status}</p>}
       <JobList session={session} />
     </div>
   )

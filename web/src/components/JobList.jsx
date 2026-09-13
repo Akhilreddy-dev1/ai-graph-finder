@@ -25,13 +25,17 @@ export default function JobList({session}){
 
   if(!session?.token) return null
   return (
-    <div className="mt-3">
-      <h4 className="text-sm font-medium">Recent Jobs</h4>
-      <ul className="mt-2 text-xs text-gray-400 space-y-1">
+    <div className="job-list">
+      <div className="subsection-label">RECENT ACTIVITY</div>
+      <ul>
         {jobs.map(j=> (
-          <li key={j.job_id} className="p-1 bg-[#091025] rounded">{j.job_id.slice(0,8)} — {j.status}</li>
+          <li key={j.job_id}>
+            <span className={`job-status job-${j.status}`}>{j.status}</span>
+            <code>{j.job_id.slice(0,8)}</code>
+            <span className="job-arrow">↗</span>
+          </li>
         ))}
-        {!jobs.length && <li className="text-gray-600">No jobs yet</li>}
+        {!jobs.length && <li className="empty-state">No jobs yet</li>}
       </ul>
     </div>
   )

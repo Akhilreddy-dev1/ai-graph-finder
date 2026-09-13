@@ -1,6 +1,8 @@
 import asyncio
 import base64
 import json
+import logging
+import math
 import os
 import re
 import secrets
@@ -36,13 +38,32 @@ except Exception:
 
 import db
 
+logger = logging.getLogger("ai_graph_finder")
+
 try:
     import resource
 except Exception:
     resource = None
 
-VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
+# Keep this list intentionally explicit. It prevents a client from selecting an
+# arbitrary provider model while making model support discoverable in the UI.
+VISION_MODELS = {
+    "meta-llama/llama-4-scout-17b-16e-instruct": "Llama 4 Scout · vision",
+    "meta-llama/llama-4-maverick-17b-128e-instruct": "Llama 4 Maverick · vision",
+}
+CHAT_MODELS = {
+    "llama-3.3-70b-versatile": "Llama 3.3 70B · quality",
+    "llama-3.1-8b-instant": "Llama 3.1 8B · fast",
+    "openai/gpt-oss-120b": "GPT OSS 120B · reasoning",
+    "openai/gpt-oss-20b": "GPT OSS 20B · fast reasoning",
+    "qwen/qwen3-32b": "Qwen 3 32B · multilingual",
+    "moonshotai/kimi-k2-instruct": "Kimi K2 · long context",
+    **VISION_MODELS,
+}
+VISION_MODEL = next(iter(VISION_MODELS))
 CHAT_MODEL = "llama-3.3-70b-versatile"
+MAX_IMAGE_BYTES = 12 * 1024 * 1024
+MAX_CHART_POINTS = 5_000
 
 ALLOWED_ORIGINS = [
     o.strip()
@@ -52,6 +73,8 @@ ALLOWED_ORIGINS = [
     ).split(",")
     if o.strip()
 ]
+if "https://akhilreddy-dev1.github.io" not in ALLOWED_ORIGINS:
+    ALLOWED_ORIGINS.append("https://akhilreddy-dev1.github.io")
 ADMIN_KEY = os.environ.get("ADMIN_KEY", "")
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
@@ -130,10 +153,82 @@ def require_admin(x_admin_key: Optional[str]):
 
 
 def extract_json(raw: str) -> dict:
-    match = re.search(r"\{.*\}", raw, re.DOTALL)
-    if not match:
-        raise ValueError("No JSON object found in AI response.")
-    return json.loads(match.group(0))
+    decoder = json.JSONDecoder()
+    for match in re.finditer(r"\{", raw):
+        try:
+            value, _ = decoder.raw_decode(raw[match.start() :])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(value, dict):
+            return value
+    raise ValueError("No JSON object found in AI response.")
+
+
+def select_model(model: Optional[str], allowed: dict[str, str], default: str) -> str:
+    selected = (model or "").strip() or default
+    if selected not in allowed:
+        available = ", ".join(allowed)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported model '{selected}'. Choose one of: {available}",
+        )
+    return selected
+
+
+def numeric_values(values: object, name: str) -> list[float | int]:
+    if not isinstance(values, list) or not values:
+        raise ValueError(f"Response did not contain a non-empty {name} array")
+    if len(values) > MAX_CHART_POINTS:
+        raise ValueError(f"Response contained too many {name} values")
+    result = []
+    for value in values:
+        if isinstance(value, bool):
+            raise ValueError(f"{name} values must be numbers")
+        try:
+            number = float(value)
+        except (OverflowError, TypeError, ValueError):
+            raise ValueError(f"{name} values must be numbers") from None
+        if not math.isfinite(number):
+            raise ValueError(f"{name} values must be finite")
+        result.append(int(number) if number.is_integer() else number)
+    return result
+
+
+def normalize_chart_result(result: object) -> dict:
+    if not isinstance(result, dict):
+        raise ValueError("AI response was not a JSON object")
+    x = numeric_values(result.get("x"), "x")
+    y = numeric_values(result.get("y"), "y")
+    if len(x) != len(y):
+        raise ValueError("Response contained mismatched x and y arrays")
+    z = result.get("z")
+    normalized_z = None if z is None else numeric_values(z, "z")
+    if normalized_z is not None and len(normalized_z) != len(x):
+        raise ValueError("Response contained mismatched z values")
+    chart_type = result.get("chart_type", "line")
+    if chart_type not in {"line", "bar", "scatter", "3d"}:
+        chart_type = "line"
+    label = result.get("label", "Detected graph")
+    if not isinstance(label, str):
+        label = "Detected graph"
+    return {
+        "x": x,
+        "y": y,
+        "z": normalized_z,
+        "label": label.strip()[:200] or "Detected graph",
+        "chart_type": chart_type,
+    }
+
+
+def groq_detail(exc: Exception, action: str) -> str:
+    text = str(exc).lower()
+    if "401" in text or "authentication" in text or "invalid api key" in text:
+        return "Groq API key was rejected. Enter a valid, active key."
+    if "429" in text or "rate limit" in text:
+        return "Groq rate limit reached. Wait a moment and try again."
+    if "model" in text and ("not found" in text or "unsupported" in text):
+        return "That Groq model is unavailable. Choose another supported model."
+    return f"Groq {action} is temporarily unavailable. Try again shortly."
 
 
 def contains_shell_metachar(s: str) -> bool:
@@ -411,6 +506,15 @@ async def get_presets():
 @app.get("/api/demo-graph")
 async def demo_graph(preset: str = Query("growth")):
     return PRESET_GRAPHS.get(preset, PRESET_GRAPHS["growth"])
+
+
+@app.get("/api/models")
+async def models():
+    return {
+        "defaults": {"vision": VISION_MODEL, "chat": CHAT_MODEL},
+        "vision": [{"id": key, "label": value} for key, value in VISION_MODELS.items()],
+        "chat": [{"id": key, "label": value} for key, value in CHAT_MODELS.items()],
+    }
 
 
 @app.post("/api/analyze-image")

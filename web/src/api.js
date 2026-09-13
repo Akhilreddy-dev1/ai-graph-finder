@@ -55,20 +55,6 @@ export async function fetchGraph(sessionId, token) {
   return parseResponse(res)
 }
 
-export async function executeCommand(command, sessionId, token) {
-  const form = new FormData()
-  form.append("command", command)
-  form.append("session", sessionId)
-  form.append("token", token)
-  const res = await fetch(apiUrl("/api/execute"), { method: "POST", body: form })
-  return parseResponse(res)
-}
-
-export async function fetchJob(jobId) {
-  const res = await fetch(apiUrl(`/api/job/${encodeURIComponent(jobId)}`))
-  return parseResponse(res)
-}
-
 export async function fetchSessionJobs(sessionId, token) {
   const res = await fetch(
     apiUrl(`/api/session/${encodeURIComponent(sessionId)}/jobs?token=${encodeURIComponent(token || "")}`)
@@ -245,4 +231,23 @@ export function clientSideAnalyzeGraph(data, question) {
     return `### Forecast Projections\n\nExtrapolating based on current trajectory:\n1. $X = ${p1X} \\implies Y \\approx ${p1Y}$\n2. $X = ${p2X} \\implies Y \\approx ${p2Y}$`
   }
   return `### AI Insights for **${data.label || "Graph"}**\n\n- **Points Extracted:** ${n} coordinates\n- **Mean (Average):** ${yMean.toFixed(2)}\n- **Extrema:** Peak ${yMax} | Low ${yMin}\n- **Trend Model:** $y = ${slope.toFixed(2)}x ${intercept >= 0 ? "+" : "-"} ${Math.abs(intercept).toFixed(2)}$`
+}
+
+export async function analyzeImage(file, apiKey, model) {
+  const form = new FormData()
+  form.append("api_key", apiKey)
+  form.append("file", file)
+  if (model) form.append("model", model)
+  const res = await fetch(apiUrl("/api/analyze-image"), { method: "POST", body: form })
+  return parseResponse(res)
+}
+
+export async function chat(question, apiKey, graphContext = "", model) {
+  const form = new FormData()
+  form.append("api_key", apiKey)
+  form.append("question", question)
+  if (graphContext) form.append("graph_context", graphContext)
+  if (model) form.append("model", model)
+  const res = await fetch(apiUrl("/api/chat"), { method: "POST", body: form })
+  return parseResponse(res)
 }
