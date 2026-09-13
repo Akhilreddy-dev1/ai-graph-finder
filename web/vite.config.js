@@ -3,7 +3,7 @@ import react from "@vitejs/plugin-react"
 import path from "path"
 
 export default defineConfig({
-  base: "/ai-graph-finder/", VITE_API_BASE: "https://ai-graph-finder-1.onrender.com",
+  base: "/ai-graph-finder/",
   plugins: [react()],
   resolve: {
     alias: {
