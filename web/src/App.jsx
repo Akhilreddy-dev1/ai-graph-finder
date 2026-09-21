@@ -9,6 +9,7 @@ import {
   Terminal,
   Table2,
   X,
+  Sparkles,
 } from 'lucide-react'
 import Chart2D from './components/Chart2D'
 import Chart3D from './components/Chart3D'
@@ -28,17 +29,12 @@ export default function App() {
   const [showTableModal, setShowTableModal] = useState(false)
   const [backendOk, setBackendOk] = useState(null)
 
-  const [physicsOpts, setPhysicsOpts] = useState({
-    autoRotate: true,
-    showStems: true,
-    showCurve: true,
-    showGrid: true,
-  })
-
-  // Landing page state
+  // Landing page state: opens on initial page load; can be re-opened anytime from navbar or sidebar
   const [showLanding, setShowLanding] = useState(() => {
     try {
-      return !localStorage.getItem('agf_seen_landing')
+      // Clear legacy lockout key if present
+      localStorage.removeItem('agf_seen_landing')
+      return !sessionStorage.getItem('agf_dismissed_landing')
     } catch {
       return true
     }
@@ -46,10 +42,17 @@ export default function App() {
 
   const handleEnterApp = () => {
     try {
-      localStorage.setItem('agf_seen_landing', '1')
+      sessionStorage.setItem('agf_dismissed_landing', '1')
     } catch {}
     setShowLanding(false)
   }
+
+  const [physicsOpts, setPhysicsOpts] = useState({
+    autoRotate: true,
+    showStems: true,
+    showCurve: true,
+    showGrid: true,
+  })
 
   // Active graph data state (stored in localStorage)
   const [graphData, setGraphData] = useState(() => {
@@ -150,6 +153,15 @@ export default function App() {
           {/* Center Tabs Switcher */}
           <div className="flex items-center gap-1 bg-[#161b22] p-0.5 rounded border border-[#30363d]">
             <button
+              onClick={() => setShowLanding(true)}
+              className="flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium text-[#79c0ff] hover:text-white hover:bg-[#21262d] transition-colors"
+              title="Open 3D AI Landing Page"
+            >
+              <Sparkles className="w-3 h-3 text-[#38bdf8]" />
+              <span>Landing</span>
+            </button>
+
+            <button
               onClick={() => handleTabSwitch('studio_3d')}
               className={`flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
                 activeTab === 'studio_3d'
@@ -160,6 +172,7 @@ export default function App() {
               <Box className="w-3 h-3 text-[#58a6ff]" />
               <span>3D</span>
             </button>
+
             <button
               onClick={() => handleTabSwitch('studio_2d')}
               className={`flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
@@ -171,6 +184,7 @@ export default function App() {
               <BarChart3 className="w-3 h-3 text-[#3fb950]" />
               <span>2D</span>
             </button>
+
             <button
               onClick={() => setActiveTab('scanner')}
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
@@ -182,6 +196,7 @@ export default function App() {
             >
               <Camera className="w-3 h-3" />
             </button>
+
             <button
               onClick={() => setActiveTab('chat')}
               className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
@@ -283,6 +298,7 @@ export default function App() {
             physicsOpts={physicsOpts}
             setPhysicsOpts={setPhysicsOpts}
             backendOk={backendOk}
+            onOpenLanding={() => setShowLanding(true)}
           />
         )}
 
