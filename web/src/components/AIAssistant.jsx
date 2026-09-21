@@ -1,9 +1,9 @@
 
 import React, { useState, useRef, useEffect } from 'react'
 import { Send, Terminal, Trash2, Copy, Check, ChevronRight } from 'lucide-react'
-import { chatWithAI, clientSideAnalyzeGraph } from '../api'
+import { chat, clientSideAnalyzeGraph } from '../api'
 
-export default function AIAssistant({ graphData, onClose }) {
+export default function AIAssistant({ graphData, onGraph }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
@@ -12,6 +12,7 @@ export default function AIAssistant({ graphData, onClose }) {
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [apiKey, setApiKey] = useState('')
   const [copiedIdx, setCopiedIdx] = useState(null)
   const scrollRef = useRef(null)
 
@@ -29,13 +30,16 @@ export default function AIAssistant({ graphData, onClose }) {
     setLoading(true)
 
     try {
-      const response = await chatWithAI(text, graphData)
+      const response = await chat(newMessages, apiKey, JSON.stringify(graphData || {}))
       const replyText = response?.reply || clientSideAnalyzeGraph(graphData, text)
+      const updatedGraph = response?.graph
+      if (updatedGraph && onGraph) onGraph(updatedGraph)
       setMessages([
         ...newMessages,
         {
           role: 'assistant',
           content: replyText,
+          graphUpdated: Boolean(updatedGraph),
         },
       ])
     } catch {
@@ -95,6 +99,17 @@ export default function AIAssistant({ graphData, onClose }) {
         </div>
       </div>
 
+      <div className="px-3 py-2 border-b border-[var(--border)] bg-[#0d1117]/45">
+        <input
+          type="password"
+          value={apiKey}
+          onChange={(event) => setApiKey(event.target.value)}
+          placeholder="Optional Groq API key — server fallback enabled"
+          autoComplete="off"
+          className="w-full bg-[#0d1117] border border-[#30363d] rounded px-2.5 py-1.5 text-[10px] text-[var(--text-pri)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)]"
+        />
+      </div>
+
       {/* Quick Command Bar */}
       <div className="px-3 py-1.5 border-b border-[var(--border)] flex gap-1.5 overflow-x-auto bg-[#0d1117]/50">
         {commands.map((c) => (
@@ -129,6 +144,9 @@ export default function AIAssistant({ graphData, onClose }) {
               }`}
             >
               <div className="whitespace-pre-wrap font-sans">{m.content}</div>
+              {m.graphUpdated && (
+                <div className="graph-updated-chip"><span>✓</span> Graph Updated</div>
+              )}
 
               {m.role === 'assistant' && (
                 <button

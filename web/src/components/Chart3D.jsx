@@ -59,11 +59,19 @@ export default function Chart3D({
     scene.add(plotGroup)
 
     // Parse Data
-    const xVals = data?.x || [1, 2, 3, 4, 5, 6, 7, 8]
-    const yVals = data?.y || [2, 5, 3, 8, 7, 12, 10, 15]
+    const nodeGraph = Array.isArray(data?.nodes)
+    const graphNodes = nodeGraph ? data.nodes : []
+    const xVals = nodeGraph
+      ? graphNodes.map((_, index) => Math.cos((index / Math.max(graphNodes.length, 1)) * Math.PI * 2) * 10)
+      : (data?.x || [1, 2, 3, 4, 5, 6, 7, 8])
+    const yVals = nodeGraph
+      ? graphNodes.map((_, index) => Math.sin((index / Math.max(graphNodes.length, 1)) * Math.PI * 2) * 8)
+      : (data?.y || [2, 5, 3, 8, 7, 12, 10, 15])
     const zVals = data?.z && data.z.length === xVals.length
       ? data.z
-      : yVals.map((y, i) => y * Math.sin(i * 0.8))
+      : nodeGraph
+        ? graphNodes.map((_, index) => ((index % 3) - 1) * 3)
+        : yVals.map((y, i) => y * Math.sin(i * 0.8))
 
     const minX = Math.min(...xVals), maxX = Math.max(...xVals)
     const minY = Math.min(...yVals), maxY = Math.max(...yVals)
@@ -98,7 +106,7 @@ export default function Chart3D({
       })
       const sphere = new THREE.Mesh(sphereGeo, sphereMat)
       sphere.position.copy(vec)
-      sphere.userData = { index: i }
+      sphere.userData = { index: i, label: graphNodes[i]?.label }
       plotGroup.add(sphere)
       sphereMeshes.push(sphere)
 
@@ -128,8 +136,20 @@ export default function Chart3D({
       }
     }
 
+    if (nodeGraph && Array.isArray(data.links)) {
+      const pointById = new Map(graphNodes.map((node, index) => [String(node.id), points3D[index]]))
+      const linkMaterial = new THREE.LineBasicMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.7 })
+      data.links.forEach((link) => {
+        const source = pointById.get(String(link.source))
+        const target = pointById.get(String(link.target))
+        if (!source || !target) return
+        const geometry = new THREE.BufferGeometry().setFromPoints([source, target])
+        plotGroup.add(new THREE.Line(geometry, linkMaterial))
+      })
+    }
+
     // Spline curve
-    if (physicsOpts?.showCurve !== false && points3D.length > 1) {
+    if (!nodeGraph && physicsOpts?.showCurve !== false && points3D.length > 1) {
       const curve = new THREE.CatmullRomCurve3(points3D)
       const tubeGeo = new THREE.TubeGeometry(curve, 72, 0.12, 8, false)
       const tubeMat = new THREE.MeshStandardMaterial({

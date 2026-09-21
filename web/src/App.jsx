@@ -277,7 +277,13 @@ export default function App() {
           {activeTab === 'chat' && (
             <div className="w-full h-full max-w-3xl mx-auto pt-6 px-4 pb-12 z-10 relative">
               <div className="h-[80vh] glass-panel rounded-lg shadow-2xl border border-[#30363d] overflow-hidden">
-                <AIAssistant graphData={graphData} />
+                <AIAssistant
+                  graphData={graphData}
+                  onGraph={(updatedGraph) => {
+                    setGraphData({ ...updatedGraph, label: 'Assistant relationship graph', chart_type: '3d' })
+                    setSelectedNode(null)
+                  }}
+                />
               </div>
             </div>
           )}

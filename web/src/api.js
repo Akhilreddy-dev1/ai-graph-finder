@@ -105,6 +105,18 @@ export async function analyzeImage(file, apiKey = "") {
   }
 }
 
+export async function chat(history, apiKey = "", graphContext = "", model) {
+  const payload = typeof history === "string"
+    ? { question: history, api_key: apiKey, graph_context: graphContext || undefined, model: model || undefined }
+    : { history, api_key: apiKey, graph_context: graphContext || undefined, model: model || undefined }
+  const res = await fetch(apiUrl("/api/chat"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  })
+  return parseResponse(res)
+}
+
 export async function chatWithAI(question, graphContext = null, apiKey = "") {
   try {
     const form = new FormData()
@@ -287,4 +299,3 @@ export function clientSideAnalyzeGraph(data, question) {
   const sign = intercept >= 0 ? "+" : "-"
   return `### 📊 AI Analysis for **${data.label || "Graph"}**\n\n- **Data Points:** \`${n}\` coordinates\n- **Chart Type:** \`${(data.chart_type || "2D Line").toUpperCase()}\`\n- **Mean (Average):** \`${yMean.toFixed(2)}\`\n- **Range:** \`${yMin}\` (at X=${xMin}) to \`${yMax}\` (at X=${xMax})\n- **Linear Trend:** $y = ${slope.toFixed(3)}x ${sign} ${Math.abs(intercept).toFixed(3)}$ ($R^2 = ${r2.toFixed(3)}$)\n\nFeel free to ask me to predict future points, calculate specific ranges, or identify inflection points!`
 }
-
