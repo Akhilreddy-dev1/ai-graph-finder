@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react'
 import { Copy, Check, Download, FileCode, FileSpreadsheet } from 'lucide-react'
 
@@ -9,9 +10,8 @@ export default function CodeExport({ data }) {
   const pythonCode = `import json
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
-# Extracted dataset from AI Graph Finder 2.0
+# Dataset extracted with AI Graph Finder 2.0
 data = {
     "label": "${data.label || 'Extracted Graph'}",
     "chart_type": "${data.chart_type || 'line'}",
@@ -22,19 +22,12 @@ data = {
 
 df = pd.DataFrame({"X": data["x"], "Y": data["y"]})
 
-# 2D Interactive Plot
-chart_type = data.get("chart_type", "line")
-if chart_type == "bar":
-    fig = px.bar(df, x="X", y="Y", title=data["label"], color="Y", color_continuous_scale="Viridis")
-elif chart_type == "scatter":
-    fig = px.scatter(df, x="X", y="Y", title=data["label"], size="Y", color="Y")
-else:
-    fig = px.line(df, x="X", y="Y", title=data["label"], markers=True)
-
+# 2D visualization
+fig = px.line(df, x="X", y="Y", title=data["label"], markers=True)
 fig.update_layout(template="plotly_dark")
 fig.show()
 
-# 3D Spatial Plot
+# 3D visualization (if Z axis exists)
 if data.get("z"):
     df_3d = pd.DataFrame({"X": data["x"], "Y": data["y"], "Z": data["z"]})
     fig_3d = px.scatter_3d(df_3d, x="X", y="Y", z="Z", title=f'{data["label"]} (3D)', color="Z")
@@ -71,50 +64,48 @@ if data.get("z"):
   }
 
   return (
-    <div className="p-4 glass-card rounded-xl">
-      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
-        <div className="flex items-center gap-2">
-          <FileCode className="w-4 h-4 text-indigo-400" />
-          <h4 className="text-sm font-semibold text-slate-200">Recreation Code & Export</h4>
+    <div className="p-3.5 glass-panel rounded-lg text-[var(--text-pri)]">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+        <div className="flex items-center gap-1.5">
+          <FileCode className="w-3.5 h-3.5 text-[var(--text-sec)]" />
+          <span className="text-xs font-semibold">Python Plotly & Export</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button
             onClick={copyToClipboard}
-            className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs transition-colors border border-slate-700"
+            className="flex items-center gap-1 px-2.5 py-1 bg-[#21262d] hover:bg-[#30363d] text-[var(--text-pri)] rounded text-[11px] border border-[#30363d] transition-colors"
           >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? 'Copied' : 'Copy Python'}
+            {copied ? <Check className="w-3 h-3 text-[var(--success)]" /> : <Copy className="w-3 h-3" />}
+            {copied ? 'Copied' : 'Copy'}
           </button>
           <button
             onClick={downloadPython}
-            className="flex items-center gap-1.5 px-3 py-1 bg-indigo-600/80 hover:bg-indigo-600 text-white rounded text-xs transition-colors"
+            className="mono flex items-center gap-1 px-2.5 py-1 bg-[#238636] hover:bg-[#2ea043] text-white rounded text-[11px] font-medium transition-colors"
           >
-            <Download className="w-3.5 h-3.5" />
-            .py Script
+            <Download className="w-3 h-3" />
+            .py
           </button>
           <button
             onClick={downloadCSV}
-            className="flex items-center gap-1.5 px-3 py-1 bg-emerald-600/80 hover:bg-emerald-600 text-white rounded text-xs transition-colors"
+            className="mono flex items-center gap-1 px-2.5 py-1 bg-[#21262d] hover:bg-[#30363d] text-[var(--text-pri)] rounded text-[11px] border border-[#30363d] transition-colors"
           >
-            <FileSpreadsheet className="w-3.5 h-3.5" />
+            <FileSpreadsheet className="w-3 h-3" />
             .csv
           </button>
           <button
             onClick={downloadJSON}
-            className="flex items-center gap-1.5 px-3 py-1 bg-amber-600/80 hover:bg-amber-600 text-white rounded text-xs transition-colors"
+            className="mono flex items-center gap-1 px-2.5 py-1 bg-[#21262d] hover:bg-[#30363d] text-[var(--text-pri)] rounded text-[11px] border border-[#30363d] transition-colors"
           >
-            <Download className="w-3.5 h-3.5" />
+            <Download className="w-3 h-3" />
             .json
           </button>
         </div>
       </div>
 
-      <div className="relative">
-        <pre className="bg-[#050811] p-3 text-xs rounded-lg text-indigo-200 font-mono overflow-x-auto max-h-56 border border-slate-800/80">
-          {pythonCode}
-        </pre>
-      </div>
+      <pre className="mono bg-[#0d1117] p-2.5 text-[11px] rounded text-[#79c0ff] overflow-x-auto max-h-52 border border-[#30363d]">
+        {pythonCode}
+      </pre>
     </div>
   )
 }

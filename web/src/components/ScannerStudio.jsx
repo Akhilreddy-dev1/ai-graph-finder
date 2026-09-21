@@ -1,8 +1,8 @@
+
 import React, { useRef, useState, useEffect } from 'react'
 import {
   Camera,
   Upload,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
   Copy,
@@ -13,7 +13,7 @@ import {
 import { analyzeImage } from '../api'
 
 export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
-  const [activeSource, setActiveSource] = useState('camera') // 'camera' or 'upload'
+  const [activeSource, setActiveSource] = useState('camera')
   const [loading, setLoading] = useState(false)
   const [statusMsg, setStatusMsg] = useState('')
   const [errorMsg, setErrorMsg] = useState('')
@@ -26,7 +26,6 @@ export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
   const streamRef = useRef(null)
   const fileInputRef = useRef(null)
 
-  // Listen for global clipboard paste events (e.g. Snipping tool Win+Shift+S)
   useEffect(() => {
     const handlePaste = (e) => {
       const items = e.clipboardData?.items
@@ -43,7 +42,6 @@ export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
     return () => window.removeEventListener('paste', handlePaste)
   }, [])
 
-  // Manage camera when camera mode is active
   useEffect(() => {
     if (activeSource === 'camera') {
       startCamera()
@@ -59,12 +57,10 @@ export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
       stopCamera()
       let stream
       try {
-        // Try ideal environment camera first
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } },
         })
       } catch {
-        // Fallback to any default camera available (laptop webcam)
         stream = await navigator.mediaDevices.getUserMedia({ video: true })
       }
 
@@ -76,9 +72,9 @@ export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
         }
       }
       setCameraActive(true)
-    } catch (err) {
+    } catch {
       setCameraActive(false)
-      setErrorMsg('Camera access unavailable or blocked. Please check browser camera permissions or upload an image.')
+      setErrorMsg('Camera access unavailable. Check browser permissions or upload an image file.')
     }
   }
 
@@ -94,20 +90,20 @@ export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
     if (!file) return
     setLoading(true)
     setErrorMsg('')
-    setStatusMsg('Scanning graph with built-in AI digitizer...')
+    setStatusMsg('Extracting numerical series from image...')
 
     try {
       const result = await analyzeImage(file)
       if (result && result.x && result.y && result.x.length > 0) {
-        setStatusMsg('Graph coordinates digitized successfully!')
+        setStatusMsg('Graph coordinates digitized.')
         setLastScanned(result)
         onDataExtracted(result)
         setLoading(false)
       } else {
-        throw new Error('Could not identify graph coordinates from this image.')
+        throw new Error('Could not identify coordinate markers from this image.')
       }
     } catch (err) {
-      setErrorMsg(err.message || 'Image analysis failed. Please try a clearer graph or chart image.')
+      setErrorMsg(err.message || 'Image processing failed. Provide a high-contrast chart image.')
       setLoading(false)
     }
   }
@@ -130,96 +126,90 @@ export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
   }
 
   return (
-    <div className="space-y-4 max-w-4xl mx-auto">
+    <div className="space-y-4 max-w-3xl mx-auto p-4">
       {/* Header Banner */}
-      <div className="p-4 glass-card rounded-2xl flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
-            <Camera className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-base font-bold text-slate-100 flex items-center gap-2">
-              Camera & Graph Scanner
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/60 text-emerald-400 border border-emerald-500/30">
-                Built-in Vision AI
-              </span>
-            </h3>
-            <p className="text-xs text-slate-400">
-              Point your camera at any chart, upload an image, or press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-indigo-300 font-mono text-[10px]">Ctrl+V</kbd> to paste a screenshot
-            </p>
-          </div>
+      <div className="p-4 glass-panel rounded-lg flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 className="text-sm font-semibold text-[var(--text-pri)] flex items-center gap-2">
+            <Camera className="w-4 h-4 text-[var(--accent)]" />
+            Image Digitizer
+            <span className="mono text-[10px] px-1.5 py-0.5 rounded bg-[#21262d] text-[var(--text-sec)] border border-[#30363d]">
+              CV ENGINE
+            </span>
+          </h3>
+          <p className="text-xs text-[var(--text-sec)] mt-0.5">
+            Capture graph with camera, upload file, or press <kbd className="mono px-1 py-0.5 rounded bg-[#21262d] text-[var(--text-pri)] text-[10px] border border-[#30363d]">Ctrl+V</kbd>
+          </p>
         </div>
 
         {/* Source Mode Switcher */}
-        <div className="flex bg-slate-900/90 p-1 rounded-xl border border-slate-800">
+        <div className="flex bg-[#0d1117] p-1 rounded-md border border-[#30363d]">
           <button
             onClick={() => setActiveSource('camera')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all ${
               activeSource === 'camera'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#21262d] text-[var(--text-pri)] border border-[#388bfd]/50'
+                : 'text-[var(--text-sec)] hover:text-[var(--text-pri)]'
             }`}
           >
             <Camera className="w-3.5 h-3.5" />
-            Live Camera
+            Camera
           </button>
           <button
             onClick={() => setActiveSource('upload')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`flex items-center gap-1.5 px-3 py-1 rounded text-xs font-medium transition-all ${
               activeSource === 'upload'
-                ? 'bg-indigo-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-[#21262d] text-[var(--text-pri)] border border-[#388bfd]/50'
+                : 'text-[var(--text-sec)] hover:text-[var(--text-pri)]'
             }`}
           >
             <Upload className="w-3.5 h-3.5" />
-            File Upload
+            Upload
           </button>
         </div>
       </div>
 
       {/* Main Scanner Stage */}
-      <div className="glass-card rounded-2xl p-6 shadow-xl border border-indigo-500/20">
-        {activeSource === 'camera' && (
-          <div className="space-y-4">
-            <div className="relative rounded-2xl overflow-hidden bg-black aspect-video border border-slate-800 max-h-[420px] mx-auto flex items-center justify-center">
+      <div className="glass-panel rounded-lg p-5">
+        {activeSource === 'camera' ? (
+          <div className="space-y-3">
+            <div className="relative rounded-lg overflow-hidden bg-[#0d1117] border border-[#30363d] aspect-video flex items-center justify-center">
               <video
                 ref={videoRef}
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover"
+                className={`w-full h-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
               />
-              <canvas ref={canvasRef} className="hidden" />
-
-              {/* Scanning reticle overlay */}
-              <div className="absolute inset-8 border border-dashed border-indigo-400/40 rounded-xl pointer-events-none flex items-center justify-center">
-                <div className="text-[11px] font-medium text-indigo-300/80 bg-slate-950/70 px-3 py-1 rounded-full backdrop-blur-sm">
-                  Align graph inside this boundary
-                </div>
-              </div>
-
-              {!cameraActive && !errorMsg && (
-                <div className="absolute inset-0 bg-slate-950/80 flex flex-col items-center justify-center text-slate-400 gap-2">
-                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-400" />
-                  <span className="text-xs">Initializing camera feed...</span>
+              {!cameraActive && (
+                <div className="text-center p-6 space-y-2">
+                  <Camera className="w-8 h-8 text-[var(--text-muted)] mx-auto" />
+                  <p className="text-xs text-[var(--text-sec)]">Camera is standby or inactive</p>
+                  <button
+                    onClick={startCamera}
+                    className="px-3 py-1 rounded bg-[#21262d] hover:bg-[#30363d] text-xs font-medium text-[var(--text-pri)] border border-[#30363d] transition-colors"
+                  >
+                    Start Camera
+                  </button>
                 </div>
               )}
+              <canvas ref={canvasRef} className="hidden" />
             </div>
 
-            <div className="flex justify-center">
-              <button
-                onClick={handleCapturePhoto}
-                disabled={loading}
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold rounded-xl text-sm shadow-xl transition-all hover:scale-105 disabled:opacity-50"
-              >
-                <Camera className="w-4 h-4" />
-                {loading ? 'Digitizing Curve...' : 'Snap Photo & Digitize Graph'}
-              </button>
-            </div>
+            {cameraActive && (
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={handleCapturePhoto}
+                  disabled={loading}
+                  className="px-4 py-2 bg-[#238636] hover:bg-[#2ea043] disabled:opacity-40 text-white rounded text-xs font-semibold flex items-center gap-2 transition-colors"
+                >
+                  <Camera className="w-4 h-4" />
+                  Capture & Digitize
+                </button>
+              </div>
+            )}
           </div>
-        )}
-
-        {activeSource === 'upload' && (
+        ) : (
           <div
             onDragOver={(e) => {
               e.preventDefault()
@@ -231,81 +221,76 @@ export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
               setDragOver(false)
               if (e.dataTransfer.files?.[0]) processFile(e.dataTransfer.files[0])
             }}
-            onClick={() => fileInputRef.current?.click()}
-            className={`cursor-pointer border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
+            className={`border border-dashed rounded-lg p-8 text-center transition-colors ${
               dragOver
-                ? 'border-indigo-400 bg-indigo-500/15 scale-[1.01]'
-                : 'border-slate-700/80 hover:border-indigo-500/60 hover:bg-slate-900/40'
+                ? 'border-[var(--accent)] bg-[#388bfd]/5'
+                : 'border-[#30363d] hover:border-[#8b949e] bg-[#0d1117]/60'
             }`}
           >
             <input
-              type="file"
               ref={fileInputRef}
-              onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])}
+              type="file"
               accept="image/*"
               className="hidden"
+              onChange={(e) => e.target.files?.[0] && processFile(e.target.files[0])}
             />
-            <div className="w-16 h-16 rounded-2xl bg-indigo-600/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center mx-auto mb-4">
-              <Upload className="w-8 h-8" />
-            </div>
-            <h4 className="text-base font-semibold text-slate-100">
-              Drag & drop a graph image, or <span className="text-indigo-400 underline">browse files</span>
-            </h4>
-            <p className="text-xs text-slate-400 mt-2">
-              Or take a screenshot with <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[11px]">Win + Shift + S</kbd> and press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[11px]">Ctrl + V</kbd> to paste
+            <Upload className="w-8 h-8 text-[var(--text-muted)] mx-auto mb-2" />
+            <p className="text-xs font-medium text-[var(--text-pri)]">
+              Drag and drop image here, or{' '}
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-[var(--accent)] hover:underline"
+              >
+                browse files
+              </button>
             </p>
-            <p className="text-[11px] text-slate-500 mt-1">Supports PNG, JPG, JPEG, WEBP, SVG</p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-1">
+              Supports PNG, JPG, WEBP.
+            </p>
           </div>
         )}
 
-        {/* Loading Spinner */}
+        {/* Status Message */}
         {loading && (
-          <div className="mt-4 p-4 rounded-xl bg-indigo-950/40 border border-indigo-500/30 flex items-center gap-3 animate-pulse">
-            <div className="w-5 h-5 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs text-indigo-200 font-medium">{statusMsg}</span>
+          <div className="mt-4 p-3 rounded bg-[#161b22] border border-[#30363d] flex items-center gap-2 text-xs text-[var(--text-sec)]">
+            <RefreshCw className="w-4 h-4 animate-spin text-[var(--accent)] shrink-0" />
+            <span>{statusMsg}</span>
           </div>
         )}
 
-        {/* Error notification */}
         {errorMsg && (
-          <div className="mt-4 p-4 rounded-xl bg-red-950/40 border border-red-500/30 flex items-center gap-3">
-            <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />
-            <span className="text-xs text-red-200">{errorMsg}</span>
+          <div className="mt-4 p-3 rounded bg-[#2a1215] border border-[#f85149]/40 flex items-center gap-2 text-xs text-[#ff7b72]">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
           </div>
         )}
 
-        {/* Scanned Result Card */}
+        {/* Extraction Result */}
         {lastScanned && !loading && (
-          <div className="mt-6 p-4 rounded-xl bg-emerald-950/30 border border-emerald-500/30 flex flex-wrap items-center justify-between gap-4 animate-fadeIn">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                <CheckCircle2 className="w-5 h-5" />
+          <div className="mt-4 p-3.5 rounded bg-[#161b22] border border-[#30363d] space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-xs font-semibold text-[var(--success)]">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>Extracted {lastScanned.x?.length || 0} Data Points</span>
               </div>
-              <div>
-                <h4 className="text-sm font-bold text-emerald-300">
-                  {lastScanned.label || 'Graph Digitized Successfully'}
-                </h4>
-                <p className="text-xs text-slate-400">
-                  Extracted {lastScanned.x?.length || 0} coordinate points • Classification: {(lastScanned.chart_type || 'line').toUpperCase()}
-                </p>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => onNavigateToStudio('2d')}
+                  className="px-2.5 py-1 rounded bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] text-xs text-[var(--text-pri)] transition-colors"
+                >
+                  View in 2D
+                </button>
+                <button
+                  onClick={() => onNavigateToStudio('3d')}
+                  className="px-2.5 py-1 rounded bg-[#238636] hover:bg-[#2ea043] text-xs text-white transition-colors"
+                >
+                  View in 3D
+                </button>
               </div>
             </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => onNavigateToStudio('2d')}
-                className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold shadow-md transition-all"
-              >
-                View in 2D Studio
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => onNavigateToStudio('3d')}
-                className="flex items-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-semibold border border-slate-700 transition-all"
-              >
-                View in 3D Studio
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+            <div className="mono text-[11px] text-[var(--text-muted)] truncate">
+              X: [{lastScanned.x.slice(0, 8).join(', ')}{lastScanned.x.length > 8 ? '...' : ''}]
             </div>
           </div>
         )}

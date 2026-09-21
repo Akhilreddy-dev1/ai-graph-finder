@@ -1,4 +1,4 @@
-﻿# 🤖 AI Graph Finder 2.0 PRO
+# 🤖 AI Graph Finder 2.0 PRO
 
 > **Visualize · Analyze · Understand · Export** — Powered by built-in AI. No API key required.
 
@@ -145,19 +145,19 @@ Set the env var `GROQ_API_KEY` on Render for full LLM-powered AI answers.
 ai-graph-finder/
 ├── web/                      # Vite + React frontend
 │   └── src/
-│       ├── App.jsx           # Root — tab navigation, shared graph state
+│       ├── App.jsx           # Full-screen layout with floating glass panels
 │       ├── api.js            # API calls + built-in AI math engine
 │       ├── config.js         # Backend URL, feature flags
 │       └── components/
-│           ├── LandingPage3D.jsx  # Three.js 3D animated intro
-│           ├── GraphStudio.jsx    # 2D Studio tab
-│           ├── Studio3D.jsx       # 3D Studio tab
-│           ├── ScannerStudio.jsx  # Camera Scanner tab
-│           ├── AIAssistant.jsx    # AI chat tab
-│           ├── Chart2D.jsx        # Recharts 2D renderer
-│           ├── Chart3D.jsx        # Three.js 3D renderer
-│           ├── DataGrid.jsx       # Live-editable data table
-│           └── CodeExport.jsx     # Export modal
+│           ├── LandingPage3D.jsx    # Professional 3D landing intro
+│           ├── ControlsSidebar.jsx  # Floating left sidebar (presets, filter, physics)
+│           ├── NodeDetailsPanel.jsx # Dynamic right slide-in panel for clicked nodes
+│           ├── Chart2D.jsx          # Interactive 2D Chart.js canvas
+│           ├── Chart3D.jsx          # 100% full-screen Three.js 3D canvas with raycasting
+│           ├── ScannerStudio.jsx    # CV digitizer (camera, paste, upload)
+│           ├── AIAssistant.jsx      # Statistical analytics query engine
+│           ├── DataGrid.jsx         # Live coordinate editor table modal
+│           └── CodeExport.jsx       # Plotly & Python code export panel
 ├── api.py                    # FastAPI backend
 ├── main.py                   # Render entrypoint (uvicorn)
 ├── requirements.txt
