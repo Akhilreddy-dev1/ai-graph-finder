@@ -3,6 +3,7 @@ name: Deploy Node Studio to GitHub Pages
 on:
   push:
     branches: [ main, 'akhilreddy-dev1-web-ui-frontend' ]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
