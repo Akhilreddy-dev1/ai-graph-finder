@@ -128,28 +128,20 @@ export async function chatWithAI(question, graphContext = null, apiKey = "") {
   }
 }
 
-export const CLIENT_PRESETS = {
+export const CLIENT_PRESETS_2D = {
   growth: {
     x: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     y: [2.1, 4.8, 8.5, 15.2, 28.0, 49.3, 85.1, 142.6, 230.4, 380.0],
-    z: [1.0, 2.5, 4.0, 7.5, 14.0, 24.5, 42.0, 71.0, 115.0, 190.0],
+    z: null,
     label: "Exponential Technology Adoption Curve",
     chart_type: "line",
     unit: "Users (k)",
   },
-  sine: {
-    x: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-    y: [0.0, 5.0, 8.66, 10.0, 8.66, 5.0, 0.0, -5.0, -8.66, -10.0, -8.66, -5.0, 0.0],
-    z: [10.0, 8.66, 5.0, 0.0, -5.0, -8.66, -10.0, -8.66, -5.0, 0.0, 5.0, 8.66, 10.0],
-    label: "Harmonic Oscillation & 3D Helix",
-    chart_type: "line",
-    unit: "Amplitude (V)",
-  },
   stock: {
     x: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
     y: [120.5, 124.2, 122.8, 129.4, 127.1, 134.8, 138.2, 136.0, 145.5, 149.2, 147.8, 158.0],
-    z: [12.0, 15.0, 14.0, 18.0, 16.0, 22.0, 25.0, 20.0, 28.0, 30.0, 27.0, 35.0],
-    label: "Market Asset Value & Volatility",
+    z: null,
+    label: "Market Asset Price Trend",
     chart_type: "line",
     unit: "USD ($)",
   },
@@ -164,19 +156,43 @@ export const CLIENT_PRESETS = {
   sales: {
     x: [1, 2, 3, 4, 5, 6, 7, 8],
     y: [42.0, 58.5, 75.2, 68.0, 89.4, 105.2, 118.0, 142.5],
-    z: [10.2, 14.1, 18.2, 16.5, 22.0, 26.1, 29.5, 35.8],
+    z: null,
     label: "Quarterly Revenue Growth",
     chart_type: "bar",
     unit: "Revenue ($M)",
   },
-  saddle: {
+}
+
+export const CLIENT_PRESETS_3D = {
+  helix_3d: {
+    x: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+    y: [0.0, 5.0, 8.66, 10.0, 8.66, 5.0, 0.0, -5.0, -8.66, -10.0, -8.66, -5.0, 0.0],
+    z: [10.0, 8.66, 5.0, 0.0, -5.0, -8.66, -10.0, -8.66, -5.0, 0.0, 5.0, 8.66, 10.0],
+    label: "3D Harmonic Helix & Wave",
+    chart_type: "3d",
+    unit: "Amplitude (V)",
+  },
+  saddle_3d: {
     x: [-3, -2, -1, 0, 1, 2, 3, 2, 1, 0, -1, -2],
     y: [9.0, 4.0, 1.0, 0.0, 1.0, 4.0, 9.0, 4.0, 1.0, 0.0, 1.0, 4.0],
     z: [0.0, 3.0, 5.0, 6.0, 5.0, 3.0, 0.0, -2.0, -4.0, -5.0, -4.0, -2.0],
-    label: "3D Surface Manifold",
+    label: "3D Hyperbolic Paraboloid Saddle",
     chart_type: "3d",
-    unit: "Spatial Dimension",
+    unit: "Spatial Depth",
   },
+  spiral_3d: {
+    x: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+    y: [2, 4, 7, 12, 18, 25, 32, 38, 42, 44, 43, 39, 32, 22],
+    z: [1, 3, 6, 10, 15, 20, 24, 26, 25, 21, 15, 8, 0, -10],
+    label: "3D Torus Vortex Manifold",
+    chart_type: "3d",
+    unit: "Vector Flux",
+  },
+}
+
+export const CLIENT_PRESETS = {
+  ...CLIENT_PRESETS_2D,
+  ...CLIENT_PRESETS_3D,
 }
 
 function clientSideExtractGraph(name) {
@@ -186,7 +202,7 @@ function clientSideExtractGraph(name) {
   return {
     x: Array.from({ length: n }, (_, i) => i + 1),
     y: y,
-    z: y.map((v, i) => Number((v * 0.4 + i * 3).toFixed(1))),
+    z: null, // 2D image has NO z coordinate
     label: clean ? `Scanned: ${clean}` : "Scanned Graph Data",
     chart_type: "line",
     extracted_via: "client_offline_engine",
@@ -195,7 +211,7 @@ function clientSideExtractGraph(name) {
 
 export function clientSideAnalyzeGraph(data, question) {
   if (!data || !data.x || !data.y || data.x.length === 0) {
-    return "Load or capture a graph to unlock mathematical insights."
+    return "Please load or scan a graph first! Once loaded, I can analyze trends, find peaks, formulate regression equations, and forecast future points."
   }
   const x = data.x
   const y = data.y
@@ -216,29 +232,59 @@ export function clientSideAnalyzeGraph(data, question) {
   const slope = den !== 0 ? num / den : 0
   const intercept = yMean - slope * xMean
 
+  // ss_tot and ss_res for R2
+  let ssTot = 0
+  let ssRes = 0
+  for (let i = 0; i < n; i++) {
+    ssTot += Math.pow(y[i] - yMean, 2)
+    ssRes += Math.pow(y[i] - (slope * x[i] + intercept), 2)
+  }
+  const r2 = ssTot > 0 ? Math.max(0, 1 - (ssRes / ssTot)) : 1.0
+
   const q = (question || "").toLowerCase()
-  if (q.includes("trend") || q.includes("slope") || q.includes("direction")) {
-    const dir = slope > 0.05 ? "upward growth" : slope < -0.05 ? "downward decline" : "stable plateau"
-    return `### Trend Analysis for **${data.label || "Graph"}**\n\n- **Trajectory:** ${dir}\n- **Slope:** ${slope > 0 ? "+" : ""}${slope.toFixed(3)} units/step\n- **Net Change:** ${(y[n - 1] - y[0]).toFixed(2)} units\n- **Bounds:** Min ${yMin} (X=${xMin}) to Max ${yMax} (X=${xMax})`
+
+  // Greetings
+  if (q.includes("hi") || q.includes("hello") || q.includes("hey") || q.includes("who are you")) {
+    return `### 👋 Hello! I'm your Built-in AI Math & Graph Assistant.\n\nI have real-time mathematical awareness of **${data.label || "your active graph"}** (${n} points).\n\nHere are some things you can ask me:\n- *"What is the overall trend?"*\n- *"What are the peak and lowest coordinates?"*\n- *"What is the regression equation ($y = mx + b$)?"*\n- *"Predict the next 3 points"*\n- *"Calculate average and standard deviation"*`
   }
-  if (q.includes("peak") || q.includes("max") || q.includes("highest")) {
-    return `### Peak Value for **${data.label || "Graph"}**\n\n- **Maximum Value:** ${yMax}\n- **At Coordinate:** X = ${xMax}\n- **Deviation from Mean:** +${(yMax - yMean).toFixed(2)} units`
+
+  // Trend inquiry
+  if (q.includes("trend") || q.includes("slope") || q.includes("direction") || q.includes("rate") || q.includes("grow")) {
+    const dir = slope > 0.05 ? "strong upward growth" : slope < -0.05 ? "downward decline" : "stable / oscillating plateau"
+    const net = (y[n - 1] - y[0]).toFixed(2)
+    return `### 📈 Trend Analysis for **${data.label || "Graph"}**\n\n- **Trajectory:** The dataset shows a **${dir}**.\n- **Rate of Change (Slope):** \`${slope > 0 ? "+" : ""}${slope.toFixed(3)}\` Y units per X step.\n- **Linear Correlation ($R^2$):** \`${r2.toFixed(3)}\` (goodness of fit).\n- **Net Change:** \`${net > 0 ? "+" : ""}${net}\` units across the full dataset.\n- **Bounds:** Minimum \`${yMin}\` (at X=${xMin}) to Maximum \`${yMax}\` (at X=${xMax}).`
   }
-  if (q.includes("min") || q.includes("lowest") || q.includes("valley")) {
-    return `### Minimum Value for **${data.label || "Graph"}**\n\n- **Minimum Value:** ${yMin}\n- **At Coordinate:** X = ${xMin}\n- **Deviation from Mean:** ${(yMin - yMean).toFixed(2)} units`
+
+  // Peak / Max
+  if (q.includes("peak") || q.includes("max") || q.includes("highest") || q.includes("top")) {
+    return `### 🔝 Peak Point in **${data.label || "Graph"}**\n\n- **Maximum Value:** \`${yMax}\`\n- **Occurs at:** Coordinate \`X = ${xMax}\`\n- **Deviation from Mean:** \`+${(yMax - yMean).toFixed(2)}\` units above the average (\`${yMean.toFixed(2)}\`).`
   }
-  if (q.includes("formula") || q.includes("equation") || q.includes("fit")) {
+
+  // Min / Low
+  if (q.includes("min") || q.includes("lowest") || q.includes("valley") || q.includes("bottom") || q.includes("trough")) {
+    return `### 📉 Minimum Point in **${data.label || "Graph"}**\n\n- **Minimum Value:** \`${yMin}\`\n- **Occurs at:** Coordinate \`X = ${xMin}\`\n- **Deviation from Mean:** \`${(yMin - yMean).toFixed(2)}\` units below the average (\`${yMean.toFixed(2)}\`).`
+  }
+
+  // Formula / Equation
+  if (q.includes("formula") || q.includes("equation") || q.includes("fit") || q.includes("math") || q.includes("regression")) {
     const sign = intercept >= 0 ? "+" : "-"
-    return `### Mathematical Equation\n\nLinear regression formula:\n\n$$y = ${slope.toFixed(3)}x ${sign} ${Math.abs(intercept).toFixed(3)}$$\n\n- **Slope ($m$):** ${slope.toFixed(4)}\n- **Intercept ($c$):** ${intercept.toFixed(4)}`
+    return `### 📐 Mathematical Model for **${data.label || "Graph"}**\n\nCalculated linear regression model based on ${n} points:\n\n$$y = ${slope.toFixed(3)}x ${sign} ${Math.abs(intercept).toFixed(3)}$$\n\n- **Slope ($m$):** \`${slope.toFixed(4)}\`\n- **Y-Intercept ($c$):** \`${intercept.toFixed(4)}\`\n- **Goodness of Fit ($R^2$):** \`${r2.toFixed(4)}\`\n\n*Tip: Download the generated Python script to plot this regression curve with Plotly.*`
   }
-  if (q.includes("predict") || q.includes("forecast") || q.includes("next")) {
+
+  // Forecast / Predict
+  if (q.includes("predict") || q.includes("forecast") || q.includes("next") || q.includes("future") || q.includes("extrapolate")) {
     const step = n > 1 ? (x[n - 1] - x[0]) / (n - 1) : 1
-    const p1X = (x[n - 1] + step).toFixed(1)
-    const p1Y = (slope * p1X + intercept).toFixed(1)
-    const p2X = (x[n - 1] + step * 2).toFixed(1)
-    const p2Y = (slope * p2X + intercept).toFixed(1)
-    return `### Forecast Projections\n\nExtrapolating based on current trajectory:\n1. $X = ${p1X} \\implies Y \\approx ${p1Y}$\n2. $X = ${p2X} \\implies Y \\approx ${p2Y}$`
+    const p1X = Number((x[n - 1] + step).toFixed(2))
+    const p1Y = Number((slope * p1X + intercept).toFixed(2))
+    const p2X = Number((x[n - 1] + step * 2).toFixed(2))
+    const p2Y = Number((slope * p2X + intercept).toFixed(2))
+    const p3X = Number((x[n - 1] + step * 3).toFixed(2))
+    const p3Y = Number((slope * p3X + intercept).toFixed(2))
+    return `### 🔮 Forecast Extrapolations for **${data.label || "Graph"}**\n\nProjecting forward along the linear trajectory (\`slope = ${slope.toFixed(3)}\`):\n\n1. **Step 1:** $X = ${p1X} \\implies Y \\approx ${p1Y}$\n2. **Step 2:** $X = ${p2X} \\implies Y \\approx ${p2Y}$\n3. **Step 3:** $X = ${p3X} \\implies Y \\approx ${p3Y}$\n\n> *Note: Forecast assumes current rate of change continues linearly.*`
   }
-  return `### AI Insights for **${data.label || "Graph"}**\n\n- **Points Extracted:** ${n} coordinates\n- **Mean (Average):** ${yMean.toFixed(2)}\n- **Extrema:** Peak ${yMax} | Low ${yMin}\n- **Trend Model:** $y = ${slope.toFixed(2)}x ${intercept >= 0 ? "+" : "-"} ${Math.abs(intercept).toFixed(2)}$`
+
+  // General summary
+  const sign = intercept >= 0 ? "+" : "-"
+  return `### 📊 AI Analysis for **${data.label || "Graph"}**\n\n- **Data Points:** \`${n}\` coordinates\n- **Chart Type:** \`${(data.chart_type || "2D Line").toUpperCase()}\`\n- **Mean (Average):** \`${yMean.toFixed(2)}\`\n- **Range:** \`${yMin}\` (at X=${xMin}) to \`${yMax}\` (at X=${xMax})\n- **Linear Trend:** $y = ${slope.toFixed(3)}x ${sign} ${Math.abs(intercept).toFixed(3)}$ ($R^2 = ${r2.toFixed(3)}$)\n\nFeel free to ask me to predict future points, calculate specific ranges, or identify inflection points!`
 }
 

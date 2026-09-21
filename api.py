@@ -294,24 +294,16 @@ PRESET_GRAPHS = {
     "growth": {
         "x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
         "y": [2.1, 4.8, 8.5, 15.2, 28.0, 49.3, 85.1, 142.6, 230.4, 380.0],
-        "z": [1.0, 2.5, 4.0, 7.5, 14.0, 24.5, 42.0, 71.0, 115.0, 190.0],
+        "z": None,
         "label": "Exponential Technology Adoption Curve",
         "chart_type": "line",
         "unit": "Users (k)"
     },
-    "sine": {
-        "x": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
-        "y": [0.0, 5.0, 8.66, 10.0, 8.66, 5.0, 0.0, -5.0, -8.66, -10.0, -8.66, -5.0, 0.0],
-        "z": [10.0, 8.66, 5.0, 0.0, -5.0, -8.66, -10.0, -8.66, -5.0, 0.0, 5.0, 8.66, 10.0],
-        "label": "Harmonic Oscillation & 3D Helix",
-        "chart_type": "line",
-        "unit": "Amplitude (V)"
-    },
     "stock": {
         "x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
         "y": [120.5, 124.2, 122.8, 129.4, 127.1, 134.8, 138.2, 136.0, 145.5, 149.2, 147.8, 158.0],
-        "z": [12.0, 15.0, 14.0, 18.0, 16.0, 22.0, 25.0, 20.0, 28.0, 30.0, 27.0, 35.0],
-        "label": "Market Asset Value & Volatility",
+        "z": None,
+        "label": "Market Asset Price Trend",
         "chart_type": "line",
         "unit": "USD ($)"
     },
@@ -326,18 +318,34 @@ PRESET_GRAPHS = {
     "sales": {
         "x": [1, 2, 3, 4, 5, 6, 7, 8],
         "y": [42.0, 58.5, 75.2, 68.0, 89.4, 105.2, 118.0, 142.5],
-        "z": [10.2, 14.1, 18.2, 16.5, 22.0, 26.1, 29.5, 35.8],
+        "z": None,
         "label": "Quarterly Revenue Growth",
         "chart_type": "bar",
         "unit": "Revenue ($M)"
     },
-    "saddle": {
+    "helix_3d": {
+        "x": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12],
+        "y": [0.0, 5.0, 8.66, 10.0, 8.66, 5.0, 0.0, -5.0, -8.66, -10.0, -8.66, -5.0, 0.0],
+        "z": [10.0, 8.66, 5.0, 0.0, -5.0, -8.66, -10.0, -8.66, -5.0, 0.0, 5.0, 8.66, 10.0],
+        "label": "3D Harmonic Helix & Wave",
+        "chart_type": "3d",
+        "unit": "Amplitude (V)"
+    },
+    "saddle_3d": {
         "x": [-3, -2, -1, 0, 1, 2, 3, 2, 1, 0, -1, -2],
         "y": [9.0, 4.0, 1.0, 0.0, 1.0, 4.0, 9.0, 4.0, 1.0, 0.0, 1.0, 4.0],
         "z": [0.0, 3.0, 5.0, 6.0, 5.0, 3.0, 0.0, -2.0, -4.0, -5.0, -4.0, -2.0],
-        "label": "3D Surface Manifold",
+        "label": "3D Hyperbolic Paraboloid Saddle",
         "chart_type": "3d",
         "unit": "Spatial Dimension"
+    },
+    "spiral_3d": {
+        "x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14],
+        "y": [2, 4, 7, 12, 18, 25, 32, 38, 42, 44, 43, 39, 32, 22],
+        "z": [1, 3, 6, 10, 15, 20, 24, 26, 25, 21, 15, 8, 0, -10],
+        "label": "3D Torus Vortex Manifold",
+        "chart_type": "3d",
+        "unit": "Vector Flux"
     }
 }
 
@@ -466,13 +474,12 @@ def extract_graph_from_image_locally(image_bytes: bytes, filename: str = "") -> 
             y_vals.append(norm_y)
 
         x_vals = list(range(1, num_samples + 1))
-        z_vals = [round(y_vals[i] * 0.4 + (i + 1) * 3.0, 1) for i in range(num_samples)]
         stem = Path(filename).stem.replace("_", " ").replace("-", " ").title() if filename else "Extracted Graph"
 
         return {
             "x": x_vals,
             "y": y_vals,
-            "z": z_vals,
+            "z": None,
             "label": stem or "Detected Chart",
             "chart_type": "line",
             "extracted_via": "built_in_vision_engine"
@@ -481,7 +488,7 @@ def extract_graph_from_image_locally(image_bytes: bytes, filename: str = "") -> 
         return {
             "x": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
             "y": [12.0, 18.5, 25.0, 31.2, 45.0, 60.5, 78.0, 95.2, 115.0, 140.0],
-            "z": [5.0, 8.0, 12.0, 15.0, 22.0, 30.0, 38.0, 47.0, 56.0, 70.0],
+            "z": None,
             "label": "Scanned Graph Data",
             "chart_type": "line",
             "extracted_via": "built_in_vision_fallback"

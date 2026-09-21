@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Send, Bot, User, Sparkles, Trash2, Copy, Check, TrendingUp, Compass, Cpu } from 'lucide-react'
-import { chatWithAI } from '../api'
+import { chatWithAI, clientSideAnalyzeGraph } from '../api'
 
 export default function AIAssistant({ graphData }) {
   const [messages, setMessages] = useState([
@@ -29,12 +29,13 @@ export default function AIAssistant({ graphData }) {
 
     try {
       const response = await chatWithAI(text, graphData)
+      const replyText = response?.reply || clientSideAnalyzeGraph(graphData, text)
       setMessages([
         ...newMessages,
         {
           role: 'assistant',
-          content: response.reply || 'No response received.',
-          engine: response.engine,
+          content: replyText,
+          engine: response?.engine || 'built_in_math_ai',
         },
       ])
     } catch (err) {
@@ -42,7 +43,8 @@ export default function AIAssistant({ graphData }) {
         ...newMessages,
         {
           role: 'assistant',
-          content: `Analysis error: ${err.message || 'Could not process query.'}`,
+          content: clientSideAnalyzeGraph(graphData, text),
+          engine: 'built_in_math_ai',
         },
       ])
     } finally {

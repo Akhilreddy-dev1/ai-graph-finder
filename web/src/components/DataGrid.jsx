@@ -1,70 +1,96 @@
-import React, { useState } from 'react'
-import { Plus, Trash2, RotateCcw } from 'lucide-react'
+import React, { useState, useEffect } from 'react'
+import { Plus, Trash2, RotateCcw, Table } from 'lucide-react'
 
 export default function DataGrid({ data, onUpdateData, onResetData }) {
   const [newX, setNewX] = useState('')
   const [newY, setNewY] = useState('')
   const [newZ, setNewZ] = useState('')
+  const [localRows, setLocalRows] = useState([])
+
+  const is3D = Boolean(data?.chart_type === '3d' && Array.isArray(data?.z) && data.z.length === data.x?.length)
+
+  // Synchronize local editable rows whenever graph data changes
+  useEffect(() => {
+    if (data?.x && data?.y) {
+      setLocalRows(
+        data.x.map((xVal, idx) => ({
+          x: String(xVal),
+          y: String(data.y[idx] ?? ''),
+          z: is3D && data.z ? String(data.z[idx] ?? '') : '',
+        }))
+      )
+    }
+  }, [data, is3D])
 
   if (!data || !data.x || !data.y) return null
 
-  const handlePointChange = (idx, field, value) => {
-    const num = parseFloat(value)
-    if (isNaN(num)) return
+  const handleFieldChange = (idx, field, rawValue) => {
+    // 1. Update local visual input state immediately
+    const updatedRows = [...localRows]
+    updatedRows[idx] = { ...updatedRows[idx], [field]: rawValue }
+    setLocalRows(updatedRows)
 
-    const newX = [...data.x]
-    const newY = [...data.y]
-    const newZ = data.z ? [...data.z] : null
+    // 2. If it is a valid floating point number, propagate to parent graph state
+    const num = parseFloat(rawValue)
+    if (!isNaN(num)) {
+      const nextX = [...data.x]
+      const nextY = [...data.y]
+      const nextZ = is3D && data.z ? [...data.z] : null
 
-    if (field === 'x') newX[idx] = num
-    if (field === 'y') newY[idx] = num
-    if (field === 'z' && newZ) newZ[idx] = num
+      if (field === 'x') nextX[idx] = num
+      if (field === 'y') nextY[idx] = num
+      if (field === 'z' && nextZ) nextZ[idx] = num
 
-    onUpdateData({
-      ...data,
-      x: newX,
-      y: newY,
-      z: newZ,
-    })
+      onUpdateData({
+        ...data,
+        x: nextX,
+        y: nextY,
+        z: nextZ,
+      })
+    }
   }
 
   const handleDelete = (idx) => {
     if (data.x.length <= 2) {
-      alert('Graph requires at least 2 points.')
+      alert('A graph requires at least 2 points.')
       return
     }
-    const newX = data.x.filter((_, i) => i !== idx)
-    const newY = data.y.filter((_, i) => i !== idx)
-    const newZ = data.z ? data.z.filter((_, i) => i !== idx) : null
+    const nextX = data.x.filter((_, i) => i !== idx)
+    const nextY = data.y.filter((_, i) => i !== idx)
+    const nextZ = is3D && data.z ? data.z.filter((_, i) => i !== idx) : null
 
     onUpdateData({
       ...data,
-      x: newX,
-      y: newY,
-      z: newZ,
+      x: nextX,
+      y: nextY,
+      z: nextZ,
     })
   }
 
   const handleAddPoint = (e) => {
     e.preventDefault()
-    const xVal = parseFloat(newX)
-    const yVal = parseFloat(newY)
-    const zVal = newZ ? parseFloat(newZ) : (data.z ? yVal * 0.5 : null)
+    const parsedX = parseFloat(newX)
+    const parsedY = parseFloat(newY)
+    const parsedZ = is3D ? parseFloat(newZ) : null
 
-    if (isNaN(xVal) || isNaN(yVal)) {
+    if (isNaN(parsedX) || isNaN(parsedY)) {
       alert('Please enter valid numeric X and Y values.')
       return
     }
+    if (is3D && isNaN(parsedZ)) {
+      alert('Please enter a valid numeric Z coordinate for this 3D graph.')
+      return
+    }
 
-    const newXArr = [...data.x, xVal]
-    const newYArr = [...data.y, yVal]
-    const newZArr = data.z ? [...data.z, zVal || 0] : null
+    const nextX = [...data.x, parsedX]
+    const nextY = [...data.y, parsedY]
+    const nextZ = is3D && data.z ? [...data.z, parsedZ] : null
 
     onUpdateData({
       ...data,
-      x: newXArr,
-      y: newYArr,
-      z: newZArr,
+      x: nextX,
+      y: nextY,
+      z: nextZ,
     })
 
     setNewX('')
@@ -72,12 +98,19 @@ export default function DataGrid({ data, onUpdateData, onResetData }) {
     setNewZ('')
   }
 
-  const hasZ = Boolean(data.z && data.z.length === data.x.length)
-
   return (
     <div className="p-4 glass-card rounded-xl">
       <div className="flex items-center justify-between mb-3">
-        <h4 className="text-sm font-semibold text-slate-200">Coordinate Data Points</h4>
+        <div className="flex items-center gap-2">
+          <Table className="w-4 h-4 text-indigo-400" />
+          <h4 className="text-sm font-semibold text-slate-200">
+            Coordinate Data Points
+            <span className="ml-2 text-xs font-normal text-slate-400">
+              ({data.x.length} points • {is3D ? '3D Coordinates (X, Y, Z)' : '2D Coordinates (X, Y)'})
+            </span>
+          </h4>
+        </div>
+
         {onResetData && (
           <button
             onClick={onResetData}
@@ -91,53 +124,53 @@ export default function DataGrid({ data, onUpdateData, onResetData }) {
 
       <div className="max-h-60 overflow-y-auto pr-1">
         <table className="w-full text-xs text-left">
-          <thead className="text-[11px] text-slate-400 uppercase bg-slate-800/40 sticky top-0 backdrop-blur-sm">
+          <thead className="text-[11px] text-slate-400 uppercase bg-slate-800/60 sticky top-0 backdrop-blur-md">
             <tr>
               <th className="py-2 px-2.5 rounded-l">#</th>
               <th className="py-2 px-2.5">X Axis</th>
               <th className="py-2 px-2.5">Y Value</th>
-              {hasZ && <th className="py-2 px-2.5">Z Depth</th>}
+              {is3D && <th className="py-2 px-2.5 text-indigo-300">Z Coordinate (3D Only)</th>}
               <th className="py-2 px-2.5 text-right rounded-r">Action</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-800/60">
-            {data.x.map((xVal, idx) => (
+          <tbody className="divide-y divide-slate-800/60 font-mono">
+            {localRows.map((row, idx) => (
               <tr key={idx} className="hover:bg-slate-800/30 transition-colors">
-                <td className="py-1.5 px-2.5 text-slate-500 font-mono">{idx + 1}</td>
+                <td className="py-1.5 px-2.5 text-slate-500">{idx + 1}</td>
                 <td className="py-1.5 px-2">
                   <input
                     type="number"
                     step="any"
-                    defaultValue={xVal}
-                    onBlur={(e) => handlePointChange(idx, 'x', e.target.value)}
-                    className="w-20 bg-slate-900/60 border border-slate-700/60 rounded px-2 py-0.5 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                    value={row.x}
+                    onChange={(e) => handleFieldChange(idx, 'x', e.target.value)}
+                    className="w-24 bg-slate-900/80 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 focus:border-indigo-500 focus:outline-none transition-colors"
                   />
                 </td>
                 <td className="py-1.5 px-2">
                   <input
                     type="number"
                     step="any"
-                    defaultValue={data.y[idx]}
-                    onBlur={(e) => handlePointChange(idx, 'y', e.target.value)}
-                    className="w-20 bg-slate-900/60 border border-slate-700/60 rounded px-2 py-0.5 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                    value={row.y}
+                    onChange={(e) => handleFieldChange(idx, 'y', e.target.value)}
+                    className="w-24 bg-slate-900/80 border border-slate-700/80 rounded px-2.5 py-1 text-slate-200 focus:border-indigo-500 focus:outline-none transition-colors"
                   />
                 </td>
-                {hasZ && (
+                {is3D && (
                   <td className="py-1.5 px-2">
                     <input
                       type="number"
                       step="any"
-                      defaultValue={data.z[idx]}
-                      onBlur={(e) => handlePointChange(idx, 'z', e.target.value)}
-                      className="w-20 bg-slate-900/60 border border-slate-700/60 rounded px-2 py-0.5 text-slate-200 focus:border-indigo-500 focus:outline-none"
+                      value={row.z}
+                      onChange={(e) => handleFieldChange(idx, 'z', e.target.value)}
+                      className="w-24 bg-slate-900/80 border border-indigo-700/80 rounded px-2.5 py-1 text-indigo-200 focus:border-indigo-400 focus:outline-none transition-colors"
                     />
                   </td>
                 )}
                 <td className="py-1.5 px-2 text-right">
                   <button
                     onClick={() => handleDelete(idx)}
-                    className="text-slate-500 hover:text-red-400 p-1 rounded hover:bg-red-500/10 transition-colors"
-                    title="Delete point"
+                    className="text-slate-500 hover:text-red-400 p-1.5 rounded-lg hover:bg-red-500/10 transition-colors"
+                    title="Delete coordinate point"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -148,40 +181,41 @@ export default function DataGrid({ data, onUpdateData, onResetData }) {
         </table>
       </div>
 
-      {/* Add point form */}
-      <form onSubmit={handleAddPoint} className="mt-3 pt-3 border-t border-slate-800/80 flex gap-2 items-center">
+      {/* Add new coordinate point */}
+      <form onSubmit={handleAddPoint} className="mt-3 pt-3 border-t border-slate-800/80 flex flex-wrap gap-2 items-center">
+        <span className="text-xs text-slate-400 mr-1 font-medium">Add Point:</span>
         <input
           type="number"
           step="any"
           value={newX}
           onChange={(e) => setNewX(e.target.value)}
-          placeholder="Next X"
-          className="w-20 bg-slate-900/80 border border-slate-700/80 rounded px-2 py-1 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
+          placeholder="X Axis"
+          className="w-24 bg-slate-900/80 border border-slate-700/80 rounded px-2.5 py-1 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none font-mono"
         />
         <input
           type="number"
           step="any"
           value={newY}
           onChange={(e) => setNewY(e.target.value)}
-          placeholder="Next Y"
-          className="w-20 bg-slate-900/80 border border-slate-700/80 rounded px-2 py-1 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
+          placeholder="Y Value"
+          className="w-24 bg-slate-900/80 border border-slate-700/80 rounded px-2.5 py-1 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none font-mono"
         />
-        {hasZ && (
+        {is3D && (
           <input
             type="number"
             step="any"
             value={newZ}
             onChange={(e) => setNewZ(e.target.value)}
-            placeholder="Next Z"
-            className="w-20 bg-slate-900/80 border border-slate-700/80 rounded px-2 py-1 text-xs text-slate-200 focus:border-indigo-500 focus:outline-none"
+            placeholder="Z Depth (3D)"
+            className="w-28 bg-slate-900/80 border border-indigo-700/80 rounded px-2.5 py-1 text-xs text-indigo-200 focus:border-indigo-400 focus:outline-none font-mono"
           />
         )}
         <button
           type="submit"
-          className="flex items-center gap-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-xs transition-colors shadow-sm ml-auto"
+          className="flex items-center gap-1 px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm ml-auto"
         >
           <Plus className="w-3.5 h-3.5" />
-          Add Point
+          Add Coordinate
         </button>
       </form>
     </div>

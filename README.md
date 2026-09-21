@@ -1,77 +1,171 @@
-# AI Graph Finder — Node Studio (Web)
+﻿# 🤖 AI Graph Finder 2.0 PRO
 
-This repository contains both the original Streamlit shell app and a new React + Vite web frontend (Node Studio) that provides a 3D immersive graph UI.
+> **Visualize · Analyze · Understand · Export** — Powered by built-in AI. No API key required.
 
-The web frontend is served as a static SPA and is deployed to GitHub Pages: https://akhilreddy-dev1.github.io/ai-graph-finder/
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-6366f1?style=for-the-badge&logo=github)](https://akhilreddy-dev1.github.io/ai-graph-finder/)
+[![Backend API](https://img.shields.io/badge/Backend-Render.com-10b981?style=for-the-badge)](https://ai-graph-finder.onrender.com)
 
-If you want the full interactive experience (live commands, sandboxed execution, and persistent sessions) you must run or deploy the backend (FastAPI) described below. The GitHub Pages site hosts only the frontend static files.
+---
 
-Quick start — run the full stack locally
+## ✨ What Is This?
 
-1) Install Python deps and start backend (FastAPI):
+**AI Graph Finder** is an interactive web application that lets you:
+- **Draw, customize, and explore 2D & 3D graphs** in real time
+- **Scan any graph image** (camera, screenshot, file upload) and digitize it into live data
+- **Chat with a built-in AI math assistant** that analyzes trends, peaks, forecasts, and formulas
+- **Export graph data** as Python, JavaScript, CSV, or JSON — ready to paste into your projects
+
+Everything runs in your browser. The built-in AI requires **zero API key**.
+
+---
+
+## 🗂️ App Sections
+
+### 📊 2D Studio
+The main graphing canvas for line charts, bar charts, and scatter plots.
+
+| Feature | How to use |
+|---|---|
+| **Change chart type** | Dropdown in the top toolbar (Line / Bar / Scatter) |
+| **Load a preset** | Click any preset button (Growth Curve, Stock Price, Bell Curve, Sales Trend) |
+| **Edit data points** | Click any cell in the data table below the chart — changes apply instantly |
+| **Add / remove rows** | Use the **+ Row** and **🗑️** buttons in the table |
+| **Change colors** | Pick a palette from the Color Scheme selector |
+| **Export code** | Click **Export Code** → choose Python / JS / CSV / JSON |
+
+### 🔮 3D Studio
+Full 3D surface and scatter visualization using Three.js.
+
+| Feature | How to use |
+|---|---|
+| **3D presets** | Helix, Saddle Surface, Spiral — one click to load |
+| **Rotate** | Click and drag the 3D canvas |
+| **Zoom** | Scroll wheel on the canvas |
+| **Edit XYZ data** | The table shows X, Y, Z columns — edit any cell to update the 3D shape live |
+| **Metrics** | Cards show Z-max, Z-min, and point count |
+
+> **Note:** Z coordinates only appear in 3D Studio. The 2D Studio never uses a Z axis.
+
+### 📷 Camera Scanner
+Digitize a graph from the real world or from a screenshot.
+
+| Method | Steps |
+|---|---|
+| **Camera** | Click **Start Camera** → point at graph → click **Capture** |
+| **Paste screenshot** | Press **Ctrl + V** anywhere on this page |
+| **Upload file** | Drag a PNG/JPG onto the drop zone, or click **Browse** |
+
+After scanning, a **success card** appears with extracted data. Click **View in 2D Studio** or **View in 3D Studio** to navigate there with your scanned graph loaded.
+
+### 🤖 AI Assistant
+Ask anything about your current graph in plain English.
+
+**Example questions:**
+- *"What is the trend?"*
+- *"When does this reach its peak?"*
+- *"Give me the formula for this curve."*
+- *"Forecast the next 3 points."*
+- *"What is the R² value?"*
+
+The assistant uses the built-in math engine by default. If you have a backend with a Groq API key, it automatically upgrades to LLM-powered answers.
+
+---
+
+## 🎯 Key Features
+
+| Feature | Details |
+|---|---|
+| **Built-in AI** | Local math engine — no API key needed |
+| **2D Charts** | Line, Bar, Scatter with live data editing |
+| **3D Charts** | Three.js interactive 3D surface/scatter |
+| **Camera Scanner** | Camera capture, paste (Ctrl+V), file upload |
+| **Code Export** | Python (matplotlib), JavaScript, CSV, JSON |
+| **3D Landing Page** | Three.js neural-network animated intro |
+| **Persistent state** | Your last graph is remembered via localStorage |
+| **Optional AI upgrade** | Connect to Render backend for GPT/Groq-level AI |
+
+---
+
+## 🚀 Quick Start (Local Development)
+
+### Prerequisites
+- [Node.js 18+](https://nodejs.org)
+- [Python 3.10+](https://python.org) *(optional — only needed for backend AI features)*
+
+### 1. Clone and install
 
 ```bash
-pip install -r requirements.txt
-uvicorn api:app --reload --port 8000
+git clone https://github.com/Akhilreddy-dev1/ai-graph-finder.git
+cd ai-graph-finder
 ```
 
-2) In a second terminal, run the frontend dev server:
+### 2. Run the frontend
 
-```bash
+```powershell
 cd web
 npm install
 npm run dev
 ```
 
-Open http://localhost:5173 (Vite) and create a session in the sidebar — the UI will connect to the backend at http://localhost:8000.
+Open [http://localhost:5173/ai-graph-finder/](http://localhost:5173/ai-graph-finder/)
 
-Run frontend-only (preview built SPA)
+### 3. (Optional) Run the Python backend
 
-```bash
-cd web
-npm ci
-npm run build
-npx serve -s dist -l 5000   # or use `vite preview`
+```powershell
+# In the project root
+pip install -r requirements.txt
+python main.py
 ```
 
-Deployment notes
+Or use the one-click launcher:
 
-- The frontend is published to GitHub Pages (gh-pages branch). The Pages site is static and does not include the backend. To enable live execution you must deploy the FastAPI backend to a hosting provider (Heroku/Render/Railway/Vercel serverless, or your own VPS) and configure the frontend to call that backend (see CONFIGURATION below).
+```powershell
+.\start.bat
+```
 
-Configuration & making the site work on Pages
+---
 
-- The frontend will work standalone as a demo on GitHub Pages. To enable live features:
-  - Deploy the backend and record its public URL (e.g., https://your-host.example.com).
-  - Set the API base in the frontend (development: .env.local, production: build-time BASE_URL env). Example: in web/src/config.js set export const API_BASE = 'https://your-host.example.com'
+## 🌐 Deploy
 
-Fallback behavior (Pages)
+**Frontend (GitHub Pages)** — already configured:
+```bash
+cd web && npm run build
+# then push — GitHub Pages serves from /docs or gh-pages branch
+```
 
-- The Pages-hosted SPA will show a demo graph when no backend is connected, so the UI remains interactive even without server-side execution. To use live sessions you must run/deploy the backend and create a session in the sidebar.
+**Backend (Render)** — already live at `https://ai-graph-finder.onrender.com`
 
-Troubleshooting checklist
+Set the env var `GROQ_API_KEY` on Render for full LLM-powered AI answers.
 
-- If the Pages site shows the repository README instead of the app:
-  - Hard-refresh (Ctrl+Shift+R) or open an Incognito window — Pages are cached.
-  - Ensure Pages is configured to use the `gh-pages` branch (Repository → Settings → Pages).
+---
 
-- If the app shows "Demo mode — no backend connected":
-  - Start the backend locally (uvicorn) and create a session via the sidebar.
-  - Or deploy the backend publicly and point the frontend to it (see Deployment notes).
+## 🏗️ Architecture
 
-- If the frontend builds but assets 404 on Pages:
-  - Ensure Vite's `base` is set correctly for your Pages path (web/vite.config.js uses relative paths by default).
+```
+ai-graph-finder/
+├── web/                      # Vite + React frontend
+│   └── src/
+│       ├── App.jsx           # Root — tab navigation, shared graph state
+│       ├── api.js            # API calls + built-in AI math engine
+│       ├── config.js         # Backend URL, feature flags
+│       └── components/
+│           ├── LandingPage3D.jsx  # Three.js 3D animated intro
+│           ├── GraphStudio.jsx    # 2D Studio tab
+│           ├── Studio3D.jsx       # 3D Studio tab
+│           ├── ScannerStudio.jsx  # Camera Scanner tab
+│           ├── AIAssistant.jsx    # AI chat tab
+│           ├── Chart2D.jsx        # Recharts 2D renderer
+│           ├── Chart3D.jsx        # Three.js 3D renderer
+│           ├── DataGrid.jsx       # Live-editable data table
+│           └── CodeExport.jsx     # Export modal
+├── api.py                    # FastAPI backend
+├── main.py                   # Render entrypoint (uvicorn)
+├── requirements.txt
+└── start.bat                 # One-click local launcher
+```
 
-Security notes
+---
 
-- The project includes a conservative in-process sandbox for command execution. For production, run the command worker in a properly isolated environment (container / gVisor / separate VM) and enforce rate limits.
+## 📄 License
 
-Files of interest
-
-- web/: React + Vite frontend (3D graph visualization)
-- api.py: FastAPI backend (session management, sandboxed execution, WebSocket notifications)
-- db.py: SQLite persistence for sessions, nodes, and executions
-- .github/workflows/deploy-pages.yml: CI for building and publishing the frontend to GitHub Pages
-
-Want me to:
-- Deploy the backend for you (requires a hosting account and credentials) — I can add a simple GitHub Actions workflow to deploy to a target like Railway/Render if you provide access.
-- Or prepare a build-time configuration so the Pages site points to an externally hosted backend (I can add docs and code to read a BASE_URL at build time).
+MIT © 2024 Akhil Reddy

@@ -2,34 +2,29 @@ import React, { useState } from 'react'
 import {
   Camera,
   Layers,
-  Box,
-  Columns,
   Table,
   Sparkles,
   TrendingUp,
   TrendingDown,
   Activity,
   Code2,
-  FileSpreadsheet,
-  BarChart3,
   LineChart,
+  BarChart2,
 } from 'lucide-react'
 import Chart2D from './Chart2D'
-import Chart3D from './Chart3D'
 import DataGrid from './DataGrid'
 import CodeExport from './CodeExport'
 import ScannerModal from './ScannerModal'
-import { CLIENT_PRESETS } from '../api'
+import { CLIENT_PRESETS_2D } from '../api'
 
-export default function GraphStudio({ graphData, setGraphData, onOpenScanner }) {
-  const [viewMode, setViewMode] = useState('2d') // '2d', '3d', 'split', 'table'
+export default function GraphStudio({ graphData, setGraphData }) {
   const [chartType, setChartType] = useState('line')
-  const [bottomTab, setBottomTab] = useState('data') // 'data', 'code', 'insights'
+  const [bottomTab, setBottomTab] = useState('data') // 'data' or 'code'
   const [scannerOpen, setScannerOpen] = useState(false)
 
   const handlePresetSelect = (presetKey) => {
-    if (CLIENT_PRESETS[presetKey]) {
-      setGraphData(CLIENT_PRESETS[presetKey])
+    if (CLIENT_PRESETS_2D[presetKey]) {
+      setGraphData(CLIENT_PRESETS_2D[presetKey])
     }
   }
 
@@ -62,43 +57,33 @@ export default function GraphStudio({ graphData, setGraphData, onOpenScanner }) 
         {/* Preset Selector */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
           <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1 shrink-0">
-            Presets:
+            2D Presets:
           </span>
           <button
             onClick={() => handlePresetSelect('growth')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               graphData?.label?.includes('Growth') || graphData?.label?.includes('Technology')
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-indigo-600 text-white shadow-md'
                 : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300'
             }`}
           >
             Growth Curve
           </button>
           <button
-            onClick={() => handlePresetSelect('sine')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-              graphData?.label?.includes('Harmonic') || graphData?.label?.includes('Sine')
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300'
-            }`}
-          >
-            Sine 3D Helix
-          </button>
-          <button
             onClick={() => handlePresetSelect('stock')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-              graphData?.label?.includes('Stock') || graphData?.label?.includes('Market')
-                ? 'bg-indigo-600 text-white shadow-sm'
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+              graphData?.label?.includes('Stock') || graphData?.label?.includes('Price')
+                ? 'bg-indigo-600 text-white shadow-md'
                 : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300'
             }`}
           >
-            Stock Volatility
+            Stock Trend
           </button>
           <button
             onClick={() => handlePresetSelect('bell')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               graphData?.label?.includes('Normal') || graphData?.label?.includes('Gaussian')
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-indigo-600 text-white shadow-md'
                 : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300'
             }`}
           >
@@ -106,29 +91,18 @@ export default function GraphStudio({ graphData, setGraphData, onOpenScanner }) 
           </button>
           <button
             onClick={() => handlePresetSelect('sales')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
               graphData?.label?.includes('Revenue') || graphData?.label?.includes('Sales')
-                ? 'bg-indigo-600 text-white shadow-sm'
+                ? 'bg-indigo-600 text-white shadow-md'
                 : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300'
             }`}
           >
             Quarterly Sales
           </button>
-          <button
-            onClick={() => handlePresetSelect('saddle')}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-              graphData?.label?.includes('Surface') || graphData?.label?.includes('Saddle')
-                ? 'bg-indigo-600 text-white shadow-sm'
-                : 'bg-slate-800/80 hover:bg-slate-700 text-slate-300'
-            }`}
-          >
-            3D Saddle
-          </button>
         </div>
 
-        {/* Scan & View Controls */}
+        {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          {/* Scan Action */}
           <button
             onClick={() => setScannerOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white rounded-xl text-xs font-semibold shadow-md transition-all hover:scale-105"
@@ -137,51 +111,39 @@ export default function GraphStudio({ graphData, setGraphData, onOpenScanner }) 
             Scan / Upload Graph
           </button>
 
-          {/* View Mode Switcher */}
+          {/* Chart Type Selector */}
           <div className="flex bg-slate-900/80 p-1 rounded-xl border border-slate-800">
             <button
-              onClick={() => setViewMode('2d')}
+              onClick={() => setChartType('line')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                viewMode === '2d' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                chartType === 'line' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="2D Interactive Chart"
             >
               <LineChart className="w-3.5 h-3.5" />
-              2D
+              Line
             </button>
             <button
-              onClick={() => setViewMode('3d')}
+              onClick={() => setChartType('bar')}
               className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                viewMode === '3d' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
+                chartType === 'bar' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
-              title="3D Spatial Visualizer"
             >
-              <Box className="w-3.5 h-3.5" />
-              3D
-            </button>
-            <button
-              onClick={() => setViewMode('split')}
-              className={`hidden sm:flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all ${
-                viewMode === 'split' ? 'bg-indigo-600 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Split View"
-            >
-              <Columns className="w-3.5 h-3.5" />
-              Dual
+              <BarChart2 className="w-3.5 h-3.5" />
+              Bar
             </button>
           </div>
         </div>
       </div>
 
-      {/* Metrics Cards */}
+      {/* 2D Metrics Strip */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <div className="p-3 glass-card rounded-xl flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 flex items-center justify-center">
             <Activity className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-[11px] text-slate-400">Data Points</div>
-            <div className="text-lg font-bold text-slate-100">{n} pairs</div>
+            <div className="text-[11px] text-slate-400">Coordinates (X, Y)</div>
+            <div className="text-lg font-bold text-slate-100">{n} points</div>
           </div>
         </div>
 
@@ -190,7 +152,7 @@ export default function GraphStudio({ graphData, setGraphData, onOpenScanner }) 
             <TrendingUp className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-[11px] text-slate-400">Maximum Peak</div>
+            <div className="text-[11px] text-slate-400">Peak Y Maximum</div>
             <div className="text-lg font-bold text-emerald-400">{yMax}</div>
           </div>
         </div>
@@ -200,7 +162,7 @@ export default function GraphStudio({ graphData, setGraphData, onOpenScanner }) 
             <TrendingDown className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-[11px] text-slate-400">Minimum Trough</div>
+            <div className="text-[11px] text-slate-400">Lowest Y Minimum</div>
             <div className="text-lg font-bold text-amber-400">{yMin}</div>
           </div>
         </div>
@@ -218,63 +180,24 @@ export default function GraphStudio({ graphData, setGraphData, onOpenScanner }) 
         </div>
       </div>
 
-      {/* Main Visualizer Stage */}
+      {/* Main 2D Visualizer Stage */}
       <div className="glass-card rounded-2xl p-4 min-h-[420px] shadow-xl">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <h3 className="text-base font-bold text-slate-100">{graphData?.label || 'Active Graph'}</h3>
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
-              {graphData?.chart_type?.toUpperCase() || 'LINE'}
+            <LineChart className="w-5 h-5 text-indigo-400" />
+            <h3 className="text-base font-bold text-slate-100">{graphData?.label || '2D Active Graph'}</h3>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700">
+              {chartType.toUpperCase()} PLOT (X, Y)
             </span>
           </div>
-
-          {viewMode === '2d' && (
-            <div className="flex items-center gap-1 bg-slate-900/60 p-0.5 rounded-lg border border-slate-800 text-xs">
-              <button
-                onClick={() => setChartType('line')}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
-                  chartType === 'line' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Line
-              </button>
-              <button
-                onClick={() => setChartType('bar')}
-                className={`px-2 py-0.5 rounded text-[11px] font-medium transition-all ${
-                  chartType === 'bar' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                Bar
-              </button>
-            </div>
-          )}
         </div>
 
-        {viewMode === '2d' && (
-          <div className="h-[400px]">
-            <Chart2D data={graphData} chartType={chartType} />
-          </div>
-        )}
-
-        {viewMode === '3d' && (
-          <div className="h-[400px]">
-            <Chart3D data={graphData} />
-          </div>
-        )}
-
-        {viewMode === 'split' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 h-[400px]">
-            <div className="h-full">
-              <Chart2D data={graphData} chartType={chartType} />
-            </div>
-            <div className="h-full">
-              <Chart3D data={graphData} />
-            </div>
-          </div>
-        )}
+        <div className="h-[400px]">
+          <Chart2D data={graphData} chartType={chartType} />
+        </div>
       </div>
 
-      {/* Bottom Sub-Panels: Data Points & Python Code */}
+      {/* Sub-Panels: 2D Data Points & Python Code */}
       <div className="space-y-3">
         <div className="flex gap-2 border-b border-slate-800 pb-2">
           <button
@@ -286,7 +209,7 @@ export default function GraphStudio({ graphData, setGraphData, onOpenScanner }) 
             }`}
           >
             <Table className="w-3.5 h-3.5" />
-            Data Points Editor
+            2D Coordinates Editor (X, Y)
           </button>
           <button
             onClick={() => setBottomTab('code')}
