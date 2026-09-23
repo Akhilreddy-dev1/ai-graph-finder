@@ -62,7 +62,7 @@ export default function AIAssistant({ graphData, onGraph }) {
   }
 
   const commands = [
-    { cmd: 'trend', label: 'Trend & Slope' },
+    { cmd: 'slope', label: 'Find Slope' },
     { cmd: 'extrema', label: 'Min / Max Extrema' },
     { cmd: 'equation', label: 'Fit Regression' },
     { cmd: 'forecast', label: 'Project Next Points' },

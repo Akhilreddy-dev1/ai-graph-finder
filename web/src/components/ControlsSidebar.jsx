@@ -9,7 +9,6 @@ import {
   FileSpreadsheet,
   Camera,
   Bot,
-  Sparkles,
   Box,
   BarChart3
 } from 'lucide-react'
@@ -25,7 +24,6 @@ export default function ControlsSidebar({
   physicsOpts,
   setPhysicsOpts,
   backendOk,
-  onOpenLanding,
 }) {
   const [search, setSearch] = useState('')
   const [expanded, setExpanded] = useState({ datasets: true, type: true, physics: true, export: false })
@@ -97,17 +95,6 @@ export default function ControlsSidebar({
       className="glass-panel panel-slide-left fixed left-0 top-10 bottom-0 w-60 z-30 flex flex-col overflow-hidden"
       style={{ borderRight: '1px solid var(--border)', borderTop: 'none' }}
     >
-      {/* 3D Landing Page Shortcut */}
-      <div className="px-3 pt-3 pb-1">
-        <button
-          onClick={onOpenLanding}
-          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-[#1f242c] hover:bg-[#2b323c] text-[#79c0ff] hover:text-white border border-[#388bfd]/40 text-xs font-semibold transition-all shadow-sm"
-        >
-          <Sparkles className="w-3.5 h-3.5 text-[#58a6ff] animate-pulse" />
-          <span>3D Landing Intro</span>
-        </button>
-      </div>
-
       {/* Search */}
       <div className="px-3 py-2">
         <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-[rgba(13,17,23,0.8)] border border-[var(--border)]">

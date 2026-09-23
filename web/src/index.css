@@ -23,8 +23,17 @@
     color: var(--text-pri);
     font-family: Inter, system-ui, -apple-system, sans-serif;
     overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
     height: 100vh;
     width: 100vw;
+  }
+
+  button, input, select {
+    touch-action: manipulation;
+  }
+
+  .app-shell button {
+    min-height: 32px;
   }
 
   #root {
@@ -52,6 +61,7 @@
 .mono {
   font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
 }
+.slope-badge { padding: 4px 7px; color: #c4b5fd; border: 1px solid rgba(167,139,250,.28); border-radius: 6px; background: rgba(124,58,237,.13); font-size: 10px; }
 
 @keyframes slideInLeft {
   from { transform: translateX(-100%); opacity: 0; }
@@ -251,7 +261,30 @@ select.control-input { appearance: auto; }
   .landing-feature-card { min-height: 155px; }
 }
 @media (max-width: 600px) {
-  .topbar { height: 70px; padding: 0 16px; }
+  .app-shell header { height: 58px; padding: 0 10px; }
+  .app-shell header > div:first-child { min-width: 0; }
+  .app-shell header > div:first-child > div:last-child { display: none; }
+  .app-shell header > div:nth-child(2) { gap: 2px; max-width: 52vw; overflow-x: auto; }
+  .app-shell header > div:nth-child(2) button { padding: 6px 8px; min-width: 38px; }
+  .app-shell header > div:nth-child(3) { gap: 3px; }
+  .app-shell header > div:nth-child(3) > button { padding: 5px 7px; }
+  .app-shell .slope-badge { padding: 4px 5px; font-size: 9px; }
+  .app-shell > div.absolute.inset-0 { padding-top: 58px; }
+  .app-shell .glass-panel { border-radius: 14px; }
+  .app-shell aside {
+    top: 58px !important;
+    width: min(88vw, 330px) !important;
+    box-shadow: 18px 0 45px rgba(0,0,0,.45);
+  }
+  .app-shell aside button, .app-shell aside input { min-height: 40px; }
+  .app-shell aside .text-\[10px\] { font-size: 11px; }
+  .app-shell aside .text-\[11px\] { font-size: 12px; }
+  .app-shell .p-4 { padding: 12px; }
+  .app-shell .pt-6 { padding-top: 12px; }
+  .app-shell .px-4 { padding-left: 10px; padding-right: 10px; }
+  .app-shell .h-\[80vh\] { height: calc(100vh - 84px); }
+  .app-shell .max-w-3xl { max-width: none; }
+  .app-shell .graph-canvas canvas { max-width: 100%; }
   .topbar-meta { display: none; }
   .workspace { padding: 22px 14px 24px; }
   .app-footer { padding: 0 14px 20px; }

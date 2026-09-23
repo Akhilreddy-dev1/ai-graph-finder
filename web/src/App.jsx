@@ -9,7 +9,6 @@ import {
   Terminal,
   Table2,
   X,
-  Sparkles,
 } from 'lucide-react'
 import Chart2D from './components/Chart2D'
 import Chart3D from './components/Chart3D'
@@ -24,7 +23,13 @@ import { healthCheck, CLIENT_PRESETS_2D, CLIENT_PRESETS_3D } from './api'
 export default function App() {
   const [activeTab, setActiveTab] = useState('studio_3d') // 'studio_2d', 'studio_3d', 'scanner', 'chat'
   const [chartType, setChartType] = useState('line')
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [sidebarOpen, setSidebarOpen] = useState(() => {
+    try {
+      return window.innerWidth > 760
+    } catch {
+      return true
+    }
+  })
   const [selectedNode, setSelectedNode] = useState(null)
   const [showTableModal, setShowTableModal] = useState(false)
   const [backendOk, setBackendOk] = useState(null)
@@ -116,12 +121,26 @@ export default function App() {
   const yVals = graphData?.y || []
   const yMax = yVals.length ? Math.max(...yVals).toFixed(2) : '0'
   const yMean = yVals.length ? (yVals.reduce((a, b) => a + b, 0) / yVals.length).toFixed(2) : '0'
+  const slope = (() => {
+    const x = graphData?.x || []
+    const y = graphData?.y || []
+    if (x.length < 2 || x.length !== y.length) return '0.000'
+    const xMean = x.reduce((sum, value) => sum + Number(value), 0) / x.length
+    const yMeanValue = y.reduce((sum, value) => sum + Number(value), 0) / y.length
+    const denominator = x.reduce((sum, value) => sum + (Number(value) - xMean) ** 2, 0)
+    if (!denominator) return '0.000'
+    const numerator = x.reduce(
+      (sum, value, index) => sum + (Number(value) - xMean) * (Number(y[index]) - yMeanValue),
+      0
+    )
+    return (numerator / denominator).toFixed(3)
+  })()
 
   return (
     <>
       {showLanding && <LandingPage3D onEnter={handleEnterApp} />}
 
-      <div className="relative w-screen h-screen overflow-hidden bg-[#0d1117] text-[#e6edf3] select-none font-sans">
+      <div className="app-shell relative w-screen h-screen overflow-hidden bg-[#0d1117] text-[#e6edf3] select-none font-sans">
         {/* Top Minimalist Navigation Bar */}
         <header className="fixed top-0 inset-x-0 h-10 bg-[#0d1117]/85 backdrop-blur-md border-b border-[#30363d] px-3 flex items-center justify-between z-40">
           <div className="flex items-center gap-2.5">
@@ -152,15 +171,6 @@ export default function App() {
 
           {/* Center Tabs Switcher */}
           <div className="flex items-center gap-1 bg-[#161b22] p-0.5 rounded border border-[#30363d]">
-            <button
-              onClick={() => setShowLanding(true)}
-              className="flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium text-[#79c0ff] hover:text-white hover:bg-[#21262d] transition-colors"
-              title="Open 3D AI Landing Page"
-            >
-              <Sparkles className="w-3 h-3 text-[#38bdf8]" />
-              <span>Landing</span>
-            </button>
-
             <button
               onClick={() => handleTabSwitch('studio_3d')}
               className={`flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
@@ -225,6 +235,9 @@ export default function App() {
               <span>max={yMax}</span>
               <span>mean={yMean}</span>
             </div>
+            <span className="slope-badge mono" title="Linear regression slope (m)">
+              m={slope}
+            </span>
 
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#161b22] border border-[#30363d] mono text-[10px] text-[#8b949e]">
               <span
@@ -304,7 +317,6 @@ export default function App() {
             physicsOpts={physicsOpts}
             setPhysicsOpts={setPhysicsOpts}
             backendOk={backendOk}
-            onOpenLanding={() => setShowLanding(true)}
           />
         )}
 
