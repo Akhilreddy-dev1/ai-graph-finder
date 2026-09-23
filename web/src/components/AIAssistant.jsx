@@ -7,7 +7,7 @@ export default function AIAssistant({ graphData, onGraph }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Graph Analytics Engine ready. You can query statistics, regression parameters, extrema, or trend extrapolations for **${graphData?.label || 'active dataset'}**.`,
+      content: `Welcome to AI Graph Finder. I can create and analyze graphs, find slopes and trends, calculate regression and extrema, forecast values, and update the 3D canvas for **${graphData?.label || 'your active dataset'}**. I only answer questions about this website.`,
     },
   ])
   const [input, setInput] = useState('')
@@ -87,7 +87,7 @@ export default function AIAssistant({ graphData, onGraph }) {
               setMessages([
                 {
                   role: 'assistant',
-                  content: `Context reset for **${graphData?.label || 'active graph'}**.`,
+                  content: `Context reset for **${graphData?.label || 'active graph'}**. Ask me about graph creation, analysis, slope, trends, or the 3D canvas.`,
                 },
               ])
             }

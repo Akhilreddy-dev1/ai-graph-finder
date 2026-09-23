@@ -222,8 +222,9 @@ function clientSideExtractGraph(name) {
 }
 
 export function clientSideAnalyzeGraph(data, question) {
+  const scopeReply = "I can only help with AI Graph Finder: creating graphs, analyzing graph data, finding slopes, trends, extrema, regression, and forecasts. For other questions, contact akhilreddy200925@gmail.com."
   if (!data || !data.x || !data.y || data.x.length === 0) {
-    return "Please load or scan a graph first! Once loaded, I can analyze trends, find peaks, formulate regression equations, and forecast future points."
+    return "Welcome to AI Graph Finder. Please load or scan a graph first; I can then analyze trends, find slopes, identify peaks, formulate regression equations, and forecast future points."
   }
   const x = data.x
   const y = data.y
@@ -254,6 +255,11 @@ export function clientSideAnalyzeGraph(data, question) {
   const r2 = ssTot > 0 ? Math.max(0, 1 - (ssRes / ssTot)) : 1.0
 
   const q = (question || "").toLowerCase()
+  const scopeTerms = ["graph", "chart", "plot", "data", "node", "edge", "slope", "trend", "regression", "equation", "forecast", "predict", "peak", "minimum", "maximum", "average", "visualiz", "coordinate"]
+  const greetingTerms = ["hello", "hi", "hey", "help", "what can you do"]
+  if (!scopeTerms.some((term) => q.includes(term)) && !greetingTerms.some((term) => q.includes(term))) {
+    return scopeReply
+  }
 
   // Greetings
   if (q.includes("hi") || q.includes("hello") || q.includes("hey") || q.includes("who are you")) {

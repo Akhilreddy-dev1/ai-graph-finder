@@ -426,8 +426,25 @@ def deterministic_graph_update(text: str, graph_context: Optional[str] = None) -
     return normalize_graph_update({"nodes": nodes, "links": links})
 
 
+ASSISTANT_CONTACT_EMAIL = "akhilreddy200925@gmail.com"
+ASSISTANT_SCOPE_REPLY = (
+    "I can only help with AI Graph Finder: creating graphs, analyzing graph data, "
+    "finding slopes, trends, extrema, regression, and forecasts. "
+    f"For other questions, contact {ASSISTANT_CONTACT_EMAIL}."
+)
+
+
 def fallback_chat(history: list[dict], graph_context: Optional[str]) -> tuple[str, list[dict], list[dict], Optional[dict]]:
     latest = next((item["content"] for item in reversed(history) if item["role"] == "user"), "")
+    question = latest.lower()
+    scope_terms = (
+        "graph", "chart", "plot", "data", "node", "edge", "slope", "trend",
+        "regression", "equation", "forecast", "predict", "peak", "minimum",
+        "maximum", "average", "visualiz", "coordinate", "x", "y",
+    )
+    greeting_terms = ("hello", "hi", "hey", "help", "what can you do")
+    if not any(term in question for term in scope_terms) and not any(term in question for term in greeting_terms):
+        return ASSISTANT_SCOPE_REPLY, [], [], None
     graph = deterministic_graph_update(latest, graph_context)
     if graph:
         call = {
@@ -449,8 +466,9 @@ def fallback_chat(history: list[dict], graph_context: Optional[str]) -> tuple[st
         except (TypeError, ValueError, json.JSONDecodeError):
             pass
     return (
-        "I’m ready to help you explore the graph. Ask me to explain a trend or say something like "
-        "“connect API -> database -> dashboard” to update the 3D canvas.",
+        "Welcome to AI Graph Finder. I can create and analyze graphs, find slopes and trends, "
+        "calculate regression and extrema, forecast values, and update the 3D canvas. "
+        f"For questions outside graph analysis, contact {ASSISTANT_CONTACT_EMAIL}.",
         [],
         [],
         None,
@@ -871,8 +889,16 @@ async def chat(
     try:
         client = Groq(api_key=api_key.strip())
         system = (
-            "You are an expert math and data visualization assistant. "
-            "Help users understand graphs, equations, and data trends. Be concise and friendly. "
+            "You are the official virtual assistant for AI Graph Finder. "
+            "Welcome visitors and answer questions only about AI Graph Finder. "
+            "AI Graph Finder lets users create, edit, scan, visualize, and analyze 2D and 3D graphs; "
+            "it can calculate slopes, trends, extrema, regression equations, forecasts, and relationships "
+            "between nodes and edges. Its primary goal is to make graph exploration and mathematical insight "
+            "clear and interactive. Be helpful, friendly, professional, and concise: stay under three sentences "
+            "unless the user asks for a detailed explanation. "
+            "Politely decline unrelated, political, or general-knowledge questions. If you do not know an "
+            f"AI Graph Finder answer, say exactly: 'I don't have that information right now, but you can "
+            f"reach out to us at {ASSISTANT_CONTACT_EMAIL}.' "
             "When the user asks to create, change, or explain a relationship graph, call "
             "update_3d_graph with the complete graph. Use stable string ids and include every node "
             "needed by the edges. Never invent a graph update for a question that only asks for an explanation."
