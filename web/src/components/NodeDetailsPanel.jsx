@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react'
 import { X, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { slopeBetweenPoints } from '../utils/slope'
 
 export default function NodeDetailsPanel({ node, graphData, onUpdateData, onClose }) {
   const [editX, setEditX] = useState('')
@@ -27,6 +28,13 @@ export default function NodeDetailsPanel({ node, graphData, onUpdateData, onClos
   const mean = graphData.y.reduce((a, b) => a + b, 0) / n
   const prevY = node > 0 ? graphData.y[node - 1] : null
   const deltaY = prevY !== null ? (y - prevY) : null
+  const nextSlope = node < n - 1
+    ? slopeBetweenPoints(x, y, graphData.x[node + 1], graphData.y[node + 1])
+    : null
+  const previousSlope = node > 0
+    ? slopeBetweenPoints(graphData.x[node - 1], graphData.y[node - 1], x, y)
+    : null
+  const localSlope = nextSlope ?? previousSlope
   const pctFromMean = mean !== 0 ? ((y - mean) / Math.abs(mean)) * 100 : 0
 
   // Local trend over surrounding window
@@ -90,6 +98,11 @@ export default function NodeDetailsPanel({ node, graphData, onUpdateData, onClos
           <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-1.5">Analysis</div>
           <div className="rounded-md bg-[rgba(13,17,23,0.7)] border border-[var(--border)] px-3 py-2 space-y-1">
             <StatRow label="Mean Y" value={mean.toFixed(3)} color="var(--text-sec)" />
+            <StatRow
+              label="Adjacent slope"
+              value={localSlope === null ? 'undefined' : `${localSlope >= 0 ? '+' : ''}${localSlope.toFixed(4)}`}
+              color={localSlope === null ? 'var(--warn)' : localSlope > 0 ? 'var(--success)' : localSlope < 0 ? 'var(--danger)' : 'var(--text-muted)'}
+            />
             {deltaY !== null && (
               <StatRow
                 label="Δy from prev"
