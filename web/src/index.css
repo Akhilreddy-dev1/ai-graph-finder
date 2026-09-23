@@ -96,7 +96,7 @@
 .toolbar-hint { color: #59647b; font-size: 10px; }
 .toolbar-hint span { margin: 0 5px; color: #363d52; }
 .graph-canvas { position: absolute; inset: 0; }
-.graph-canvas canvas { display: block; filter: saturate(1.08) contrast(1.03); }
+.graph-canvas canvas { display: block; filter: saturate(1.08) contrast(1.03); touch-action: none; }
 .graph-notice { position: absolute; z-index: 4; top: 57px; left: 19px; max-width: calc(100% - 38px); padding: 8px 11px; color: #a3acc0; border: 1px solid rgba(148,163,184,.15); border-radius: 8px; background: rgba(8, 11, 22, .78); backdrop-filter: blur(8px); font-size: 10px; }
 .graph-notice.is-connected { display: flex; align-items: center; gap: 7px; color: #89dfc0; border-color: rgba(110,231,183,.17); }
 .graph-tooltip { display: flex; flex-direction: column; gap: 3px; padding: 7px 9px; color: #eef2ff; border: 1px solid rgba(167,139,250,.28); border-radius: 8px; background: rgba(10, 13, 29, .92); box-shadow: 0 10px 30px rgba(0,0,0,.28); font-family: Inter, ui-sans-serif, system-ui, sans-serif; }

@@ -10,40 +10,46 @@ export default function NodeDetailsPanel({ node, graphData, onUpdateData, onClos
   const [saved, setSaved] = useState(false)
 
   const is3D = graphData?.chart_type === '3d' && Array.isArray(graphData?.z)
+  const isSeries = Array.isArray(graphData?.x) && Array.isArray(graphData?.y)
+  const graphNodes = Array.isArray(graphData?.nodes) ? graphData.nodes : []
 
   useEffect(() => {
     if (node !== null && graphData) {
-      setEditX(String(graphData.x[node] ?? ''))
-      setEditY(String(graphData.y[node] ?? ''))
-      setEditZ(is3D ? String(graphData.z[node] ?? '') : '')
+      setEditX(String(graphData.x?.[node] ?? graphNodes[node]?.x ?? ''))
+      setEditY(String(graphData.y?.[node] ?? graphNodes[node]?.y ?? ''))
+      setEditZ(is3D ? String(graphData.z?.[node] ?? graphNodes[node]?.z ?? '') : '')
     }
-  }, [node, graphData])
+  }, [node, graphData, graphNodes])
 
   if (node === null || !graphData) return null
 
-  const x = graphData.x[node]
-  const y = graphData.y[node]
-  const z = is3D ? graphData.z[node] : null
-  const n = graphData.y.length
-  const mean = graphData.y.reduce((a, b) => a + b, 0) / n
-  const prevY = node > 0 ? graphData.y[node - 1] : null
+  const n = isSeries ? graphData.y.length : graphNodes.length
+  const x = isSeries ? graphData.x[node] : graphNodes[node]?.x ?? node
+  const y = isSeries ? graphData.y[node] : graphNodes[node]?.y ?? null
+  const z = is3D ? graphData.z[node] : graphNodes[node]?.z ?? null
+  const numericY = Number(y)
+  const seriesValues = isSeries ? graphData.y : []
+  const mean = seriesValues.length ? seriesValues.reduce((a, b) => a + Number(b), 0) / seriesValues.length : null
+  const prevY = isSeries && node > 0 ? graphData.y[node - 1] : null
   const deltaY = prevY !== null ? (y - prevY) : null
-  const nextSlope = node < n - 1
+  const nextSlope = isSeries && node < n - 1
     ? slopeBetweenPoints(x, y, graphData.x[node + 1], graphData.y[node + 1])
     : null
-  const previousSlope = node > 0
+  const previousSlope = isSeries && node > 0
     ? slopeBetweenPoints(graphData.x[node - 1], graphData.y[node - 1], x, y)
     : null
   const localSlope = nextSlope ?? previousSlope
-  const pctFromMean = mean !== 0 ? ((y - mean) / Math.abs(mean)) * 100 : 0
+  const pctFromMean = mean !== null && mean !== 0 && Number.isFinite(numericY)
+    ? ((numericY - mean) / Math.abs(mean)) * 100
+    : null
 
   // Local trend over surrounding window
   const windowStart = Math.max(0, node - 2)
   const windowEnd   = Math.min(n - 1, node + 2)
   let localTrend = 0
   if (windowEnd > windowStart) {
-    const ys = graphData.y.slice(windowStart, windowEnd + 1)
-    localTrend = ys[ys.length - 1] - ys[0]
+    const ys = isSeries ? graphData.y.slice(windowStart, windowEnd + 1) : []
+    if (ys.length > 1) localTrend = ys[ys.length - 1] - ys[0]
   }
 
   const TrendIcon = localTrend > 0.05 ? TrendingUp : localTrend < -0.05 ? TrendingDown : Minus
@@ -51,6 +57,7 @@ export default function NodeDetailsPanel({ node, graphData, onUpdateData, onClos
   const trendLabel = localTrend > 0.05 ? 'Rising' : localTrend < -0.05 ? 'Falling' : 'Flat'
 
   const handleApply = () => {
+    if (!isSeries) return
     const nx = parseFloat(editX), ny = parseFloat(editY), nz = parseFloat(editZ)
     if (isNaN(nx) || isNaN(ny)) return
     const newX = [...graphData.x]; newX[node] = nx
@@ -97,7 +104,7 @@ export default function NodeDetailsPanel({ node, graphData, onUpdateData, onClos
         <div>
           <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-1.5">Analysis</div>
           <div className="rounded-md bg-[rgba(13,17,23,0.7)] border border-[var(--border)] px-3 py-2 space-y-1">
-            <StatRow label="Mean Y" value={mean.toFixed(3)} color="var(--text-sec)" />
+            <StatRow label="Mean Y" value={mean === null ? 'n/a' : mean.toFixed(3)} color="var(--text-sec)" />
             <StatRow
               label="Adjacent slope"
               value={localSlope === null ? 'undefined' : `${localSlope >= 0 ? '+' : ''}${localSlope.toFixed(4)}`}
@@ -112,8 +119,8 @@ export default function NodeDetailsPanel({ node, graphData, onUpdateData, onClos
             )}
             <StatRow
               label="% from mean"
-              value={(pctFromMean >= 0 ? '+' : '') + pctFromMean.toFixed(1) + '%'}
-              color={pctFromMean > 0 ? 'var(--success)' : pctFromMean < 0 ? 'var(--warn)' : 'var(--text-muted)'}
+              value={pctFromMean === null ? 'n/a' : `${pctFromMean >= 0 ? '+' : ''}${pctFromMean.toFixed(1)}%`}
+              color={pctFromMean === null ? 'var(--text-muted)' : pctFromMean > 0 ? 'var(--success)' : pctFromMean < 0 ? 'var(--warn)' : 'var(--text-muted)'}
             />
             <div className="flex items-center justify-between py-1">
               <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">Local trend</span>
@@ -128,7 +135,7 @@ export default function NodeDetailsPanel({ node, graphData, onUpdateData, onClos
         {/* Edit */}
         <div>
           <div className="text-[9px] font-bold uppercase tracking-widest text-[var(--text-muted)] mb-1.5">Edit Value</div>
-          <div className="space-y-1.5">
+          {isSeries ? <div className="space-y-1.5">
             {[
               { label: 'x', val: editX, set: setEditX },
               { label: 'y', val: editY, set: setEditY },
@@ -152,7 +159,11 @@ export default function NodeDetailsPanel({ node, graphData, onUpdateData, onClos
             >
               {saved ? '✓ Applied' : 'Apply Changes'}
             </button>
-          </div>
+          </div> : (
+            <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
+              Relationship nodes are generated from labels and edges. Edit their graph structure through the assistant.
+            </p>
+          )}
         </div>
       </div>
 

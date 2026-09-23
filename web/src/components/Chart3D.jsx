@@ -169,30 +169,39 @@ export default function Chart3D({
     let prevMousePos = { x: 0, y: 0 }
     let mouseDownPos = { x: 0, y: 0 }
 
-    const onMouseDown = (e) => {
-      isDragging = true
-      dragDistance = 0
-      prevMousePos = { x: e.clientX, y: e.clientY }
-      mouseDownPos = { x: e.clientX, y: e.clientY }
+    const getClientPoint = (e) => {
+      const point = e.touches?.[0] || e.changedTouches?.[0] || e
+      return { x: point.clientX, y: point.clientY }
     }
 
-    const onMouseMove = (e) => {
+    const onPointerDown = (e) => {
+      const point = getClientPoint(e)
+      isDragging = true
+      dragDistance = 0
+      prevMousePos = point
+      mouseDownPos = point
+      dom.setPointerCapture?.(e.pointerId)
+    }
+
+    const onPointerMove = (e) => {
       if (!isDragging) return
-      const deltaX = e.clientX - prevMousePos.x
-      const deltaY = e.clientY - prevMousePos.y
+      const point = getClientPoint(e)
+      const deltaX = point.x - prevMousePos.x
+      const deltaY = point.y - prevMousePos.y
       dragDistance += Math.abs(deltaX) + Math.abs(deltaY)
       plotGroup.rotation.y += deltaX * 0.006
       plotGroup.rotation.x += deltaY * 0.006
-      prevMousePos = { x: e.clientX, y: e.clientY }
+      prevMousePos = point
     }
 
-    const onMouseUp = (e) => {
+    const onPointerUp = (e) => {
+      const point = getClientPoint(e)
       isDragging = false
       // If it wasn't a significant drag, treat as click for node selection
       if (dragDistance < 6) {
         const rect = renderer.domElement.getBoundingClientRect()
-        mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
-        mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+        mouse.x = ((point.x - rect.left) / rect.width) * 2 - 1
+        mouse.y = -((point.y - rect.top) / rect.height) * 2 + 1
         raycaster.setFromCamera(mouse, camera)
         const intersects = raycaster.intersectObjects(sphereMeshes, false)
         if (intersects.length > 0) {
@@ -210,9 +219,10 @@ export default function Chart3D({
     }
 
     const dom = renderer.domElement
-    dom.addEventListener('mousedown', onMouseDown)
-    window.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('mouseup', onMouseUp)
+    dom.addEventListener('pointerdown', onPointerDown)
+    dom.addEventListener('pointermove', onPointerMove)
+    dom.addEventListener('pointerup', onPointerUp)
+    dom.addEventListener('pointercancel', onPointerUp)
     dom.addEventListener('wheel', onWheel, { passive: false })
 
     const onResize = () => {
@@ -238,9 +248,10 @@ export default function Chart3D({
 
     return () => {
       cancelAnimationFrame(animId)
-      dom.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
+      dom.removeEventListener('pointerdown', onPointerDown)
+      dom.removeEventListener('pointermove', onPointerMove)
+      dom.removeEventListener('pointerup', onPointerUp)
+      dom.removeEventListener('pointercancel', onPointerUp)
       dom.removeEventListener('wheel', onWheel)
       window.removeEventListener('resize', onResize)
       if (mount.contains(dom)) mount.removeChild(dom)
