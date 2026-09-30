@@ -13,6 +13,7 @@ export default function AIAssistant({ graphData, onGraph }) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [apiKey, setApiKey] = useState('')
+  const [error, setError] = useState('')
   const [copiedIdx, setCopiedIdx] = useState(null)
   const scrollRef = useRef(null)
 
@@ -27,11 +28,15 @@ export default function AIAssistant({ graphData, onGraph }) {
     const newMessages = [...messages, { role: 'user', content: text }]
     setMessages(newMessages)
     if (!textToSend) setInput('')
+    setError('')
     setLoading(true)
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 30000)
 
     try {
-      const response = await chat(newMessages, apiKey, JSON.stringify(graphData || {}))
+      const response = await chat(newMessages, apiKey, JSON.stringify(graphData || {}), undefined, controller.signal)
       const replyText = response?.reply || clientSideAnalyzeGraph(graphData, text)
+      if (!replyText) throw new Error('The assistant returned an empty response.')
       const updatedGraph = response?.graph
       if (updatedGraph && onGraph) onGraph(updatedGraph)
       setMessages([
@@ -42,15 +47,20 @@ export default function AIAssistant({ graphData, onGraph }) {
           graphUpdated: Boolean(updatedGraph),
         },
       ])
-    } catch {
+    } catch (requestError) {
+      const message = requestError?.name === 'AbortError'
+        ? 'The assistant took too long to respond. Please try again.'
+        : requestError?.message || 'The assistant is temporarily unavailable.'
+      setError(message)
       setMessages([
         ...newMessages,
         {
           role: 'assistant',
-          content: clientSideAnalyzeGraph(graphData, text),
+          content: `${clientSideAnalyzeGraph(graphData, text)}\n\n[${message}]`,
         },
       ])
     } finally {
+      window.clearTimeout(timeout)
       setLoading(false)
     }
   }
@@ -123,6 +133,11 @@ export default function AIAssistant({ graphData, onGraph }) {
           </button>
         ))}
       </div>
+      {error && (
+        <div className="px-3 py-2 border-b border-[#f85149]/30 bg-[#2a1215] text-[11px] text-[#ff7b72]" role="alert">
+          {error}
+        </div>
+      )}
 
       {/* Message Feed */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3">

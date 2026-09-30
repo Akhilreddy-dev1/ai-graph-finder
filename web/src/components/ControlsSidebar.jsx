@@ -26,9 +26,23 @@ export default function ControlsSidebar({
   backendOk,
 }) {
   const [search, setSearch] = useState('')
-  const [expanded, setExpanded] = useState({ datasets: true, type: true, physics: true, export: false })
+  const [expanded, setExpanded] = useState({ datasets: true, type: true, physics: true, camera: false, export: false })
+  const [cameraDraft, setCameraDraft] = useState({
+    x: graphData?.camera_position?.x ?? 28,
+    y: graphData?.camera_position?.y ?? 22,
+    z: graphData?.camera_position?.z ?? 34,
+  })
 
   const toggle = (key) => setExpanded(p => ({ ...p, [key]: !p[key] }))
+
+  const applyCamera = () => {
+    const position = {
+      x: Number(cameraDraft.x) || 28,
+      y: Number(cameraDraft.y) || 22,
+      z: Number(cameraDraft.z) || 34,
+    }
+    setGraphData({ ...graphData, camera_position: position, camera_target: { x: 0, y: 0, z: 0 } })
+  }
 
   // Download helpers
   const dl = (content, name, mime) => {
@@ -229,6 +243,36 @@ export default function ControlsSidebar({
                       </span>
                     </button>
                   ))}
+              </div>
+            )}
+            <div className="h-px bg-[var(--border)] mx-3 mb-1" />
+          </>
+        )}
+
+        {activeTab === 'studio_3d' && (
+          <>
+            <SectionHeader id="camera" title="Camera Position" />
+            {expanded.camera && (
+              <div className="px-3 pb-2 space-y-2">
+                <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
+                  Set the 3D camera coordinates. Changes animate smoothly around the graph.
+                </p>
+                <div className="grid grid-cols-3 gap-1">
+                  {['x', 'y', 'z'].map((axis) => (
+                    <label key={axis} className="space-y-1">
+                      <span className="mono block text-[9px] text-[var(--text-muted)]">{axis}</span>
+                      <input
+                        type="number"
+                        value={cameraDraft[axis]}
+                        onChange={(event) => setCameraDraft((current) => ({ ...current, [axis]: event.target.value }))}
+                        className="control-input px-1.5 py-1 text-[10px]"
+                      />
+                    </label>
+                  ))}
+                </div>
+                <button onClick={applyCamera} className="w-full py-1.5 rounded text-[10px] font-semibold text-white bg-[var(--accent)]">
+                  Apply Camera
+                </button>
               </div>
             )}
             <div className="h-px bg-[var(--border)] mx-3 mb-1" />

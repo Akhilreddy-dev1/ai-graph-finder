@@ -259,6 +259,8 @@ export default function App() {
               data={graphData}
               physicsOpts={physicsOpts}
               selectedIndex={selectedNode}
+              cameraPosition={graphData?.camera_position}
+              cameraTarget={graphData?.camera_target}
               onNodeClick={(idx) => setSelectedNode(idx)}
             />
           )}

@@ -105,7 +105,7 @@ export async function analyzeImage(file, apiKey = "") {
   }
 }
 
-export async function chat(history, apiKey = "", graphContext = "", model) {
+export async function chat(history, apiKey = "", graphContext = "", model, signal) {
   const payload = typeof history === "string"
     ? { question: history, api_key: apiKey, graph_context: graphContext || undefined, model: model || undefined }
     : { history, api_key: apiKey, graph_context: graphContext || undefined, model: model || undefined }
@@ -113,6 +113,7 @@ export async function chat(history, apiKey = "", graphContext = "", model) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
+    signal,
   })
   return parseResponse(res)
 }

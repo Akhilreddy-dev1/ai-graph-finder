@@ -7,6 +7,8 @@ export default function Chart3D({
   physicsOpts = { autoRotate: true, showStems: true, showCurve: true, showGrid: true },
   selectedIndex = null,
   onNodeClick,
+  cameraPosition = { x: 28, y: 22, z: 34 },
+  cameraTarget = { x: 0, y: 0, z: 0 },
 }) {
   const mountRef = useRef(null)
   const clickHandlerRef = useRef(onNodeClick)
@@ -14,6 +16,10 @@ export default function Chart3D({
 
   const selectedIndexRef = useRef(selectedIndex)
   selectedIndexRef.current = selectedIndex
+  const cameraPositionRef = useRef(cameraPosition)
+  const cameraTargetRef = useRef(cameraTarget)
+  cameraPositionRef.current = cameraPosition || { x: 28, y: 22, z: 34 }
+  cameraTargetRef.current = cameraTarget || { x: 0, y: 0, z: 0 }
 
   useEffect(() => {
     const mount = mountRef.current
@@ -27,8 +33,19 @@ export default function Chart3D({
     scene.background = new THREE.Color(0x0d1117)
 
     const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000)
-    camera.position.set(28, 22, 34)
-    camera.lookAt(0, 0, 0)
+    const initialPosition = cameraPositionRef.current
+    const initialTarget = cameraTargetRef.current
+    camera.position.set(
+      Number(initialPosition.x) || 28,
+      Number(initialPosition.y) || 22,
+      Number(initialPosition.z) || 34
+    )
+    const target = new THREE.Vector3(
+      Number(initialTarget.x) || 0,
+      Number(initialTarget.y) || 0,
+      Number(initialTarget.z) || 0
+    )
+    camera.lookAt(target)
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
     renderer.setSize(width, height)
@@ -242,6 +259,20 @@ export default function Chart3D({
       if (physicsOpts?.autoRotate && !isDragging) {
         plotGroup.rotation.y += 0.0025
       }
+      const requestedPosition = cameraPositionRef.current
+      const requestedTarget = cameraTargetRef.current
+      const nextPosition = new THREE.Vector3(
+        Number(requestedPosition.x) || 28,
+        Number(requestedPosition.y) || 22,
+        Number(requestedPosition.z) || 34
+      )
+      camera.position.lerp(nextPosition, 0.12)
+      target.set(
+        Number(requestedTarget.x) || 0,
+        Number(requestedTarget.y) || 0,
+        Number(requestedTarget.z) || 0
+      )
+      camera.lookAt(target)
       renderer.render(scene, camera)
     }
     animate()
