@@ -3,7 +3,6 @@ name: Deploy Node Studio to GitHub Pages
 on:
   push:
     branches: [ main, 'akhilreddy-dev1-web-ui-frontend' ]
-  workflow_dispatch:
 
 jobs:
   build-and-deploy:
@@ -29,7 +28,7 @@ jobs:
 
       - name: Build frontend
         env:
-          VITE_API_BASE: ${{ vars.VITE_API_BASE || secrets.VITE_API_BASE || 'https://ai-graph-finder.onrender.com' }}
+          VITE_API_BASE: ${{ vars.VITE_API_BASE || secrets.VITE_API_BASE }}
         run: |
           cd web
           npm run build

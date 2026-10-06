@@ -65,68 +65,6 @@ VISION_MODEL = next(iter(VISION_MODELS))
 CHAT_MODEL = "llama-3.3-70b-versatile"
 MAX_IMAGE_BYTES = 12 * 1024 * 1024
 MAX_CHART_POINTS = 5_000
-MAX_CHAT_MESSAGES = 32
-MAX_GRAPH_NODES = 500
-MAX_GRAPH_LINKS = 2_000
-SERVER_GROQ_KEY = os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ_API_TOKEN", "")
-
-UPDATE_3D_GRAPH_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "update_3d_graph",
-        "description": "Replace the 3D graph with the supplied nodes and edges.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "nodes": {
-                    "type": "array",
-                    "description": "Graph nodes. Every node needs a stable unique id.",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "id": {"type": ["string", "number"]},
-                            "label": {"type": "string"},
-                            "type": {"type": "string"},
-                            "color": {"type": "string"},
-                        },
-                        "required": ["id"],
-                        "additionalProperties": True,
-                    },
-                },
-                "edges": {
-                    "type": "array",
-                    "description": "Connections between node ids.",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "source": {"type": ["string", "number"]},
-                            "target": {"type": ["string", "number"]},
-                            "label": {"type": "string"},
-                        },
-                        "required": ["source", "target"],
-                        "additionalProperties": True,
-                    },
-                },
-                "links": {
-                    "type": "array",
-                    "description": "Alias for edges, accepted for graph clients.",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "source": {"type": ["string", "number"]},
-                            "target": {"type": ["string", "number"]},
-                            "label": {"type": "string"},
-                        },
-                        "required": ["source", "target"],
-                        "additionalProperties": True,
-                    },
-                },
-            },
-            "required": ["nodes"],
-            "additionalProperties": False,
-        },
-    },
-}
 
 ALLOWED_ORIGINS = [
     o.strip()
@@ -292,222 +230,6 @@ def groq_detail(exc: Exception, action: str) -> str:
     if "model" in text and ("not found" in text or "unsupported" in text):
         return "That Groq model is unavailable. Choose another supported model."
     return f"Groq {action} is temporarily unavailable. Try again shortly."
-
-
-def _value(obj: object, key: str, default=None):
-    if isinstance(obj, dict):
-        return obj.get(key, default)
-    return getattr(obj, key, default)
-
-
-def normalize_graph_update(value: object) -> dict:
-    """Validate the small graph shape shared by tool calls and the 3D canvas."""
-    if not isinstance(value, dict):
-        raise ValueError("Graph update must be a JSON object")
-    raw_nodes = value.get("nodes")
-    if not isinstance(raw_nodes, list) or len(raw_nodes) > MAX_GRAPH_NODES:
-        raise ValueError(f"Graph update must contain at most {MAX_GRAPH_NODES} nodes")
-
-    nodes = []
-    node_ids = set()
-    for raw_node in raw_nodes:
-        if not isinstance(raw_node, dict) or raw_node.get("id") is None:
-            raise ValueError("Each graph node must contain an id")
-        node_id = str(raw_node["id"]).strip()
-        if not node_id or node_id in node_ids:
-            raise ValueError("Graph node ids must be unique and non-empty")
-        node_ids.add(node_id)
-        node = {
-            "id": node_id,
-            "label": str(raw_node.get("label") or node_id)[:200],
-        }
-        for field in ("type", "kind", "title"):
-            if raw_node.get(field) is not None:
-                node[field] = str(raw_node[field])[:200]
-        color = raw_node.get("color")
-        if isinstance(color, str):
-            node["color"] = {"background": color[:32]}
-        elif isinstance(color, dict):
-            background = color.get("background")
-            if isinstance(background, str):
-                node["color"] = {"background": background[:32]}
-        if isinstance(raw_node.get("metadata"), dict):
-            node["metadata"] = raw_node["metadata"]
-        nodes.append(node)
-
-    raw_links = value.get("edges")
-    if raw_links is None:
-        raw_links = value.get("links", [])
-    if not isinstance(raw_links, list) or len(raw_links) > MAX_GRAPH_LINKS:
-        raise ValueError(f"Graph update must contain at most {MAX_GRAPH_LINKS} links")
-    links = []
-    for raw_link in raw_links:
-        if not isinstance(raw_link, dict):
-            raise ValueError("Each graph edge must be an object")
-        source = str(raw_link.get("source", "")).strip()
-        target = str(raw_link.get("target", "")).strip()
-        if not source or not target or source not in node_ids or target not in node_ids:
-            raise ValueError("Graph edges must reference known node ids")
-        link = {"source": source, "target": target}
-        if raw_link.get("label") is not None:
-            link["label"] = str(raw_link["label"])[:200]
-        links.append(link)
-    return {"nodes": nodes, "links": links}
-
-
-def _slug(value: str, fallback: str) -> str:
-    result = re.sub(r"[^a-zA-Z0-9]+", "-", value.strip().lower()).strip("-")
-    return result or fallback
-
-
-def deterministic_graph_update(text: str, graph_context: Optional[str] = None) -> Optional[dict]:
-    """Build a useful graph for common prompts when no LLM is configured."""
-    lowered = text.lower()
-    graph_intent = "->" in text or bool(
-        re.search(
-            r"\b(add|create|build|make|draw|visualize|map|connect|link|update|replace|construct)\b",
-            lowered,
-        )
-    )
-    graph_intent = graph_intent and (
-        "->" in text
-        or bool(re.search(r"\b(graph|node|edge|link|topology|relationship|network|entities|services)\b", lowered))
-    )
-    if not graph_intent:
-        return None
-
-    nodes = []
-    links = []
-    if graph_context:
-        try:
-            context = json.loads(graph_context) if isinstance(graph_context, str) else graph_context
-            context_graph = context.get("graph", context) if isinstance(context, dict) else {}
-            normalized = normalize_graph_update(context_graph)
-            nodes, links = normalized["nodes"], normalized["links"]
-        except (TypeError, ValueError, json.JSONDecodeError):
-            pass
-
-    names = []
-    # Arrow chains are unambiguous: "A -> B -> C".
-    if "->" in text:
-        names = [part.strip() for part in text.split("->") if part.strip()]
-    else:
-        match = re.search(
-            r"([A-Za-z][A-Za-z0-9 _-]{0,60})\s+(?:connects to|connected to|links to|relates to)\s+"
-            r"([A-Za-z][A-Za-z0-9 _-]{0,60})",
-            text,
-            re.IGNORECASE,
-        )
-        if match:
-            names = [match.group(1).strip(" ,."), match.group(2).strip(" ,.")]
-        else:
-            list_match = re.search(r"(?:nodes?|entities?|services?)\s*[:\-]\s*([^.!?]+)", text, re.IGNORECASE)
-            if list_match:
-                names = [part.strip(" ,") for part in re.split(r",|\band\b", list_match.group(1)) if part.strip(" ,")]
-
-    if names:
-        names[0] = re.sub(r"^(?:please\s+)?(?:connect|link|add|create)\s+", "", names[0], flags=re.IGNORECASE).strip() or names[0]
-        ids = []
-        for index, name in enumerate(names):
-            node_id = _slug(name, f"node-{index + 1}")
-            if node_id not in {node["id"] for node in nodes}:
-                nodes.append({"id": node_id, "label": name[:200], "type": "assistant", "color": {"background": "#8b5cf6"}})
-            ids.append(node_id)
-        for source, target in zip(ids, ids[1:]):
-            if not any(link["source"] == source and link["target"] == target for link in links):
-                links.append({"source": source, "target": target})
-    elif not nodes:
-        nodes = [
-            {"id": "assistant-root", "label": "Graph", "type": "root", "color": {"background": "#7c3aed"}},
-            {"id": "assistant-node", "label": "New node", "type": "assistant", "color": {"background": "#06b6d4"}},
-        ]
-        links = [{"source": "assistant-root", "target": "assistant-node"}]
-
-    return normalize_graph_update({"nodes": nodes, "links": links})
-
-
-ASSISTANT_CONTACT_EMAIL = "akhilreddy200925@gmail.com"
-ASSISTANT_SCOPE_REPLY = (
-    "I can only help with AI Graph Finder: creating graphs, analyzing graph data, "
-    "finding slopes, trends, extrema, regression, and forecasts. "
-    f"For other questions, contact {ASSISTANT_CONTACT_EMAIL}."
-)
-
-
-def fallback_chat(history: list[dict], graph_context: Optional[str]) -> tuple[str, list[dict], list[dict], Optional[dict]]:
-    latest = next((item["content"] for item in reversed(history) if item["role"] == "user"), "")
-    question = latest.lower()
-    scope_terms = (
-        "graph", "chart", "plot", "data", "node", "edge", "slope", "trend",
-        "regression", "equation", "forecast", "predict", "peak", "minimum",
-        "maximum", "average", "visualiz", "coordinate", "x", "y",
-    )
-    greeting_terms = ("hello", "hi", "hey", "help", "what can you do")
-    if not any(term in question for term in scope_terms) and not any(term in question for term in greeting_terms):
-        return ASSISTANT_SCOPE_REPLY, [], [], None
-    graph = deterministic_graph_update(latest, graph_context)
-    if graph:
-        call = {
-            "id": "fallback-update-3d-graph",
-            "type": "function",
-            "function": {"name": "update_3d_graph", "arguments": json.dumps(graph)},
-        }
-        result = {
-            "tool_call_id": call["id"],
-            "name": "update_3d_graph",
-            "result": {"status": "updated", "graph": graph, "node_count": len(graph["nodes"]), "link_count": len(graph["links"])},
-        }
-        return "I updated the 3D graph with the relationships from your request.", [call], [result], graph
-    if graph_context:
-        try:
-            context = json.loads(graph_context) if isinstance(graph_context, str) else graph_context
-            if isinstance(context, dict) and context.get("x") and context.get("y"):
-                return analyze_graph_locally(context, latest), [], [], None
-        except (TypeError, ValueError, json.JSONDecodeError):
-            pass
-    return (
-        "Welcome to AI Graph Finder. I can create and analyze graphs, find slopes and trends, "
-        "calculate regression and extrema, forecast values, and update the 3D canvas. "
-        f"For questions outside graph analysis, contact {ASSISTANT_CONTACT_EMAIL}.",
-        [],
-        [],
-        None,
-    )
-
-
-def normalize_chat_history(value: object) -> list[dict]:
-    if value is None:
-        return []
-    if isinstance(value, str):
-        try:
-            value = json.loads(value)
-        except json.JSONDecodeError:
-            return []
-    if not isinstance(value, list):
-        raise ValueError("history must be an array")
-    history = []
-    for item in value[-MAX_CHAT_MESSAGES:]:
-        if not isinstance(item, dict) or item.get("role") not in {"user", "assistant"}:
-            continue
-        content = item.get("content")
-        if isinstance(content, str) and content.strip():
-            history.append({"role": item["role"], "content": content.strip()[:12000]})
-    return history
-
-
-def tool_call_payload(tool_call: object) -> dict:
-    function = _value(tool_call, "function", {}) or {}
-    arguments = _value(function, "arguments", "{}") or "{}"
-    if not isinstance(arguments, str):
-        arguments = json.dumps(arguments)
-    return {
-        "id": str(_value(tool_call, "id", "tool-call")),
-        "type": str(_value(tool_call, "type", "function")),
-        "function": {
-            "name": str(_value(function, "name", "")),
-            "arguments": arguments,
-        },
-    }
 
 
 def contains_shell_metachar(s: str) -> bool:
@@ -847,138 +569,169 @@ async def analyze_image(
     return extract_graph_from_image_locally(image_bytes, file.filename or "")
 
 
-@app.post("/api/chat")
-async def chat(
-    request: Request,
-):
+def calculate_slope_and_camera(
+    x_vals: list[float],
+    y_vals: list[float],
+    z_vals: Optional[list[float]] = None,
+    point_index: Optional[int] = None,
+    x_target: Optional[float] = None,
+) -> dict:
+    n = len(x_vals)
+    if n < 2 or len(y_vals) != n:
+        raise ValueError("Dataset requires at least 2 coordinate points.")
+
+    idx = 0
+    if point_index is not None and 0 <= point_index < n:
+        idx = point_index
+    elif x_target is not None:
+        distances = [abs(x - x_target) for x in x_vals]
+        idx = distances.index(min(distances))
+
+    if idx == 0:
+        dx = x_vals[1] - x_vals[0]
+        dy = y_vals[1] - y_vals[0]
+        dz = (z_vals[1] - z_vals[0]) if (z_vals and len(z_vals) == n) else 0.0
+    elif idx == n - 1:
+        dx = x_vals[n - 1] - x_vals[n - 2]
+        dy = y_vals[n - 1] - y_vals[n - 2]
+        dz = (z_vals[n - 1] - z_vals[n - 2]) if (z_vals and len(z_vals) == n) else 0.0
+    else:
+        dx = x_vals[idx + 1] - x_vals[idx - 1]
+        dy = y_vals[idx + 1] - y_vals[idx - 1]
+        dz = (z_vals[idx + 1] - z_vals[idx - 1]) if (z_vals and len(z_vals) == n) else 0.0
+
+    slope_xy = (dy / dx) if dx != 0 else float("inf")
+    slope_xz = (dz / dx) if (dx != 0 and z_vals) else 0.0
+
+    tangent_angle_rad = math.atan(slope_xy) if math.isfinite(slope_xy) else (math.pi / 2 if dy > 0 else -math.pi / 2)
+    tangent_angle_deg = math.degrees(tangent_angle_rad)
+
+    length = math.sqrt(dx * dx + dy * dy + dz * dz)
+    tangent_vector = [dx / length, dy / length, dz / length] if length > 0 else [1.0, 0.0, 0.0]
+
+    horiz_dist = math.sqrt(dx * dx + dz * dz)
+    spatial_pitch_deg = math.degrees(math.atan2(dy, horiz_dist)) if horiz_dist > 0 else 90.0
+
+    curr_x = x_vals[idx]
+    curr_y = y_vals[idx]
+    curr_z = z_vals[idx] if (z_vals and len(z_vals) == n) else 0.0
+
+    perp_x = -tangent_vector[2]
+    perp_z = tangent_vector[0]
+    cam_dist = 18.0
+
+    camera_pos = {
+        "x": round(curr_x + perp_x * cam_dist + tangent_vector[0] * 4.0, 2),
+        "y": round(curr_y + 8.0, 2),
+        "z": round(curr_z + perp_z * cam_dist + tangent_vector[2] * 4.0, 2),
+    }
+
+    return {
+        "point_index": idx,
+        "coordinate": {"x": curr_x, "y": curr_y, "z": curr_z if z_vals else None},
+        "slope_m": round(slope_xy, 4) if math.isfinite(slope_xy) else "undefined",
+        "slope_xy": round(slope_xy, 4) if math.isfinite(slope_xy) else "undefined",
+        "slope_xz": round(slope_xz, 4) if z_vals else None,
+        "tangent_angle_deg": round(tangent_angle_deg, 2),
+        "spatial_pitch_deg": round(spatial_pitch_deg, 2),
+        "tangent_vector": [round(v, 4) for v in tangent_vector],
+        "suggested_camera": {
+            "position": camera_pos,
+            "target": {"x": round(curr_x, 2), "y": round(curr_y, 2), "z": round(curr_z, 2)},
+        },
+    }
+
+
+@app.post("/api/slope")
+async def calculate_slope_endpoint(request: Request):
     try:
-        if "application/json" in request.headers.get("content-type", ""):
+        content_type = request.headers.get("content-type", "")
+        if "application/json" in content_type:
             payload = await request.json()
         else:
             form = await request.form()
-            payload = dict(form)
-    except (TypeError, ValueError, json.JSONDecodeError) as exc:
-        raise HTTPException(status_code=400, detail="Chat request must contain valid JSON or form data") from exc
+            raw_data = form.get("data") or form.get("graph_data")
+            payload = json.loads(raw_data) if raw_data else dict(form)
 
-    history_value = payload.get("history", payload.get("messages"))
-    try:
-        history = normalize_chat_history(history_value)
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    question = payload.get("question")
-    if isinstance(question, str) and question.strip():
-        if not history or history[-1]["role"] != "user" or history[-1]["content"] != question.strip():
-            history.append({"role": "user", "content": question.strip()[:12000]})
-    if not history or not any(message["role"] == "user" for message in history):
-        raise HTTPException(status_code=400, detail="Question or history with a user message is required")
+        graph_data = payload.get("graph_data") or payload
+        x_vals = graph_data.get("x", [])
+        y_vals = graph_data.get("y", [])
+        z_vals = graph_data.get("z")
+        point_index = payload.get("point_index") or payload.get("index")
+        x_target = payload.get("x_target") or payload.get("x")
 
-    api_key = str(payload.get("api_key") or "").strip() or (
-        os.environ.get("GROQ_API_KEY") or os.environ.get("GROQ_API_TOKEN") or SERVER_GROQ_KEY
-    ).strip()
-    graph_context = payload.get("graph_context")
-    if isinstance(graph_context, (dict, list)):
-        graph_context = json.dumps(graph_context)
-    if graph_context is not None:
-        graph_context = str(graph_context)[:12000]
-    selected_model = select_model(payload.get("model"), CHAT_MODELS, CHAT_MODEL)
-    fallback = lambda: fallback_chat(history, graph_context)
-
-    if not api_key:
-        reply, tool_calls, tool_results, graph = fallback()
-        return {"reply": reply, "text": reply, "tool_calls": tool_calls, "tool_results": tool_results, "graph": graph, "fallback": True}
-    try:
-        client = Groq(api_key=api_key.strip())
-        system = (
-            "You are the official virtual assistant for AI Graph Finder. "
-            "Welcome visitors and answer questions only about AI Graph Finder. "
-            "AI Graph Finder lets users create, edit, scan, visualize, and analyze 2D and 3D graphs; "
-            "it can calculate slopes, trends, extrema, regression equations, forecasts, and relationships "
-            "between nodes and edges. Its primary goal is to make graph exploration and mathematical insight "
-            "clear and interactive. Be helpful, friendly, professional, and concise: stay under three sentences "
-            "unless the user asks for a detailed explanation. "
-            "Politely decline unrelated, political, or general-knowledge questions. If you do not know an "
-            f"AI Graph Finder answer, say exactly: 'I don't have that information right now, but you can "
-            f"reach out to us at {ASSISTANT_CONTACT_EMAIL}.' "
-            "When the user asks to create, change, or explain a relationship graph, call "
-            "update_3d_graph with the complete graph. Use stable string ids and include every node "
-            "needed by the edges. Never invent a graph update for a question that only asks for an explanation."
+        result = calculate_slope_and_camera(
+            x_vals=x_vals,
+            y_vals=y_vals,
+            z_vals=z_vals,
+            point_index=int(point_index) if point_index is not None else None,
+            x_target=float(x_target) if x_target is not None else None,
         )
-        if graph_context:
-            system += f"\n\nCurrent graph data: {graph_context[:12000]}"
-        messages = [{"role": "system", "content": system}, *history]
-        completion = client.chat.completions.create(
-            model=selected_model,
-            messages=messages,
-            temperature=0.4,
-            tools=[UPDATE_3D_GRAPH_TOOL],
-            tool_choice="auto",
-        )
-        message = completion.choices[0].message
-        raw_tool_calls = _value(message, "tool_calls", []) or []
-        tool_calls = [tool_call_payload(item) for item in raw_tool_calls]
-        tool_results = []
-        graph = None
-        for call in tool_calls:
-            if call["function"]["name"] != "update_3d_graph":
-                continue
-            try:
-                arguments = json.loads(call["function"]["arguments"])
-                graph = normalize_graph_update(arguments)
-                result = {
-                    "status": "updated",
-                    "graph": graph,
-                    "node_count": len(graph["nodes"]),
-                    "link_count": len(graph["links"]),
-                }
-            except (TypeError, ValueError, json.JSONDecodeError) as exc:
-                result = {"status": "error", "error": str(exc)}
-            tool_results.append({
-                "tool_call_id": call["id"],
-                "name": call["function"]["name"],
-                "result": result,
-            })
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
-        reply = _value(message, "content", "") or ""
-        # Give the model a chance to describe a successful graph update naturally.
-        if tool_results:
-            assistant_tool_calls = [
-                {"id": call["id"], "type": "function", "function": call["function"]}
-                for call in tool_calls
-            ]
-            follow_up_messages = [
-                *messages,
-                {"role": "assistant", "content": reply, "tool_calls": assistant_tool_calls},
-                *[
-                    {
-                        "role": "tool",
-                        "tool_call_id": item["tool_call_id"],
-                        "content": json.dumps(item["result"]),
-                    }
-                    for item in tool_results
+
+@app.post("/api/chat")
+async def chat(request: Request):
+    content_type = request.headers.get("content-type", "")
+    question = ""
+    graph_context = None
+    api_key = None
+
+    if "application/json" in content_type:
+        body = await request.json()
+        question = body.get("question", "")
+        graph_context = body.get("graph_context")
+        api_key = body.get("api_key")
+    else:
+        form = await request.form()
+        question = str(form.get("question") or "")
+        graph_context = form.get("graph_context")
+        api_key = form.get("api_key")
+
+    key = api_key or GROQ_API_KEY
+    client = Groq(api_key=key) if key else None
+
+    parsed_context = None
+    if graph_context:
+        try:
+            parsed_context = json.loads(graph_context) if isinstance(graph_context, str) else graph_context
+        except Exception:
+            parsed_context = None
+
+    if client and question.strip():
+        try:
+            system = (
+                "You are an expert math and data visualization assistant. "
+                "Help users understand graphs, equations, derivatives/slopes, and data trends. "
+                "Structure answers with clear markdown bullet points and concise math formulas."
+            )
+            if graph_context:
+                system += f"\n\nCurrent graph data: {graph_context}"
+
+            completion = client.chat.completions.create(
+                model=CHAT_MODEL,
+                messages=[
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": question},
                 ],
-            ]
-            try:
-                follow_up = client.chat.completions.create(
-                    model=selected_model,
-                    messages=follow_up_messages,
-                    temperature=0.4,
-                )
-                reply = _value(follow_up.choices[0].message, "content", "") or reply
-            except Exception:
-                logger.info("Assistant follow-up after graph tool call failed", exc_info=True)
-        return {
-            "reply": reply,
-            "text": reply,
-            "tool_calls": tool_calls,
-            "tool_results": tool_results,
-            "graph": graph,
-            "fallback": False,
-        }
-    except Exception as exc:
-        # Chat remains useful on local/dev deployments and during provider outages.
-        logger.warning("Assistant request failed; using deterministic fallback: %s", groq_detail(exc, "assistant"))
-        reply, tool_calls, tool_results, graph = fallback()
-        return {"reply": reply, "text": reply, "tool_calls": tool_calls, "tool_results": tool_results, "graph": graph, "fallback": True}
+                temperature=0.4,
+            )
+            return {"reply": completion.choices[0].message.content, "engine": "groq_llama_3.3"}
+        except Exception:
+            pass
+
+    if parsed_context:
+        reply = analyze_graph_locally(parsed_context, question)
+    else:
+        reply = (
+            f"### Math & Data Assistant\n\n"
+            f"You asked: *\"{question}\"*\n\n"
+            f"Load or capture a graph in the **Graph Studio** tab to unlock complete mathematical and trend insights! "
+            f"I can calculate slopes, find peak/trough points, extrapolate future data, or formulate regression equations."
+        )
+    return {"reply": reply, "engine": "built_in_math_ai"}
 
 
 @app.get("/api/nodes")

@@ -9,6 +9,7 @@ import {
   Terminal,
   Table2,
   X,
+  Sparkles,
 } from 'lucide-react'
 import Chart2D from './components/Chart2D'
 import Chart3D from './components/Chart3D'
@@ -21,36 +22,14 @@ import LandingPage3D from './components/LandingPage3D'
 import { healthCheck, CLIENT_PRESETS_2D, CLIENT_PRESETS_3D } from './api'
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('studio_3d') // 'studio_2d', 'studio_3d', 'scanner', 'chat'
+  const [activeTab, setActiveTab] = useState('studio_3d')
   const [chartType, setChartType] = useState('line')
-  const [sidebarOpen, setSidebarOpen] = useState(() => {
-    try {
-      return window.innerWidth > 760
-    } catch {
-      return true
-    }
-  })
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [selectedNode, setSelectedNode] = useState(null)
   const [showTableModal, setShowTableModal] = useState(false)
   const [backendOk, setBackendOk] = useState(null)
-
-  // Landing page state: opens on initial page load; can be re-opened anytime from navbar or sidebar
-  const [showLanding, setShowLanding] = useState(() => {
-    try {
-      // Clear legacy lockout key if present
-      localStorage.removeItem('agf_seen_landing')
-      return !sessionStorage.getItem('agf_dismissed_landing')
-    } catch {
-      return true
-    }
-  })
-
-  const handleEnterApp = () => {
-    try {
-      sessionStorage.setItem('agf_dismissed_landing', '1')
-    } catch {}
-    setShowLanding(false)
-  }
+  const [cameraCoords, setCameraCoords] = useState(null)
+  const [currentCameraCoords, setCurrentCameraCoords] = useState(null)
 
   const [physicsOpts, setPhysicsOpts] = useState({
     autoRotate: true,
@@ -59,7 +38,20 @@ export default function App() {
     showGrid: true,
   })
 
-  // Active graph data state (stored in localStorage)
+  // Landing page: always show on fresh session; re-openable via navbar / sidebar button
+  const [showLanding, setShowLanding] = useState(() => {
+    try {
+      return !sessionStorage.getItem('agf_entered')
+    } catch {
+      return true
+    }
+  })
+
+  const handleEnterApp = () => {
+    try { sessionStorage.setItem('agf_entered', '1') } catch {}
+    setShowLanding(false)
+  }
+
   const [graphData, setGraphData] = useState(() => {
     try {
       const stored = localStorage.getItem('agf_active_graph')
@@ -71,32 +63,21 @@ export default function App() {
 
   useEffect(() => {
     if (graphData) {
-      try {
-        localStorage.setItem('agf_active_graph', JSON.stringify(graphData))
-      } catch {}
+      try { localStorage.setItem('agf_active_graph', JSON.stringify(graphData)) } catch {}
     }
   }, [graphData])
 
   useEffect(() => {
     let mounted = true
     healthCheck()
-      .then((res) => {
-        if (mounted) setBackendOk(res?.status === 'ok')
-      })
-      .catch(() => {
-        if (mounted) setBackendOk(false)
-      })
-    return () => {
-      mounted = false
-    }
+      .then(res => { if (mounted) setBackendOk(res?.status === 'ok') })
+      .catch(() => { if (mounted) setBackendOk(false) })
+    return () => { mounted = false }
   }, [])
 
   const handleTabSwitch = (tab) => {
-    if (tab === 'studio_3d' && graphData.chart_type !== '3d') {
-      setGraphData(CLIENT_PRESETS_3D.helix_3d)
-    } else if (tab === 'studio_2d' && graphData.chart_type === '3d') {
-      setGraphData(CLIENT_PRESETS_2D.growth)
-    }
+    if (tab === 'studio_3d' && graphData.chart_type !== '3d') setGraphData(CLIENT_PRESETS_3D.helix_3d)
+    else if (tab === 'studio_2d' && graphData.chart_type === '3d') setGraphData(CLIENT_PRESETS_2D.growth)
     setActiveTab(tab)
   }
 
@@ -118,110 +99,69 @@ export default function App() {
   }
 
   const nPoints = graphData?.x?.length || 0
-  const yVals = graphData?.y || []
-  const yMax = yVals.length ? Math.max(...yVals).toFixed(2) : '0'
-  const yMean = yVals.length ? (yVals.reduce((a, b) => a + b, 0) / yVals.length).toFixed(2) : '0'
-  const slope = (() => {
-    const x = graphData?.x || []
-    const y = graphData?.y || []
-    if (x.length < 2 || x.length !== y.length) return '0.000'
-    const xMean = x.reduce((sum, value) => sum + Number(value), 0) / x.length
-    const yMeanValue = y.reduce((sum, value) => sum + Number(value), 0) / y.length
-    const denominator = x.reduce((sum, value) => sum + (Number(value) - xMean) ** 2, 0)
-    if (!denominator) return '0.000'
-    const numerator = x.reduce(
-      (sum, value, index) => sum + (Number(value) - xMean) * (Number(y[index]) - yMeanValue),
-      0
-    )
-    return (numerator / denominator).toFixed(3)
-  })()
+  const yVals   = graphData?.y || []
+  const yMax    = yVals.length ? Math.max(...yVals).toFixed(2) : '0'
+  const yMean   = yVals.length ? (yVals.reduce((a, b) => a + b, 0) / yVals.length).toFixed(2) : '0'
 
   return (
     <>
       {showLanding && <LandingPage3D onEnter={handleEnterApp} />}
 
-      <div className="app-shell relative w-screen h-screen overflow-hidden bg-[#0d1117] text-[#e6edf3] select-none font-sans">
-        {/* Top Minimalist Navigation Bar */}
+      <div className="relative w-screen h-screen overflow-hidden bg-[#0d1117] text-[#e6edf3] select-none font-sans">
+        {/* ── Slim Top Bar ── */}
         <header className="fixed top-0 inset-x-0 h-10 bg-[#0d1117]/85 backdrop-blur-md border-b border-[#30363d] px-3 flex items-center justify-between z-40">
           <div className="flex items-center gap-2.5">
             <button
               onClick={() => setSidebarOpen(!sidebarOpen)}
               className="p-1 rounded text-[#8b949e] hover:text-[#e6edf3] hover:bg-[#21262d] transition-colors"
-              title={sidebarOpen ? 'Hide controls sidebar' : 'Show controls sidebar'}
+              title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
             >
               {sidebarOpen ? <PanelLeftClose className="w-4 h-4" /> : <PanelLeft className="w-4 h-4" />}
             </button>
-
             <div className="flex items-center gap-2">
-              <span className="text-xs font-semibold text-[#f0f6fc] tracking-tight">
-                AI Graph Finder
-              </span>
-              <span className="mono text-[10px] text-[#8b949e] px-1.5 py-0.2 rounded bg-[#161b22] border border-[#30363d]">
-                2.0 PRO
-              </span>
+              <span className="text-xs font-semibold text-[#f0f6fc] tracking-tight">AI Graph Finder</span>
+              <span className="mono text-[10px] text-[#8b949e] px-1.5 rounded bg-[#161b22] border border-[#30363d]">2.0 PRO</span>
             </div>
-
             <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-2 border-l border-[#30363d]">
               <span className="mono text-[11px] text-[#8b949e]">dataset:</span>
-              <span className="mono text-[11px] text-[var(--accent)] font-medium">
-                {graphData?.label || 'Active Graph'}
-              </span>
+              <span className="mono text-[11px] text-[var(--accent)] font-medium">{graphData?.label || 'Active Graph'}</span>
             </div>
           </div>
 
-          {/* Center Tabs Switcher */}
+          {/* Centre nav */}
           <div className="flex items-center gap-1 bg-[#161b22] p-0.5 rounded border border-[#30363d]">
             <button
-              onClick={() => handleTabSwitch('studio_3d')}
-              className={`flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                activeTab === 'studio_3d'
-                  ? 'bg-[#21262d] text-[#f0f6fc] border border-[#388bfd]/40'
-                  : 'text-[#8b949e] hover:text-[#e6edf3]'
-              }`}
+              onClick={() => setShowLanding(true)}
+              className="flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium text-[#79c0ff] hover:text-white hover:bg-[#21262d] transition-colors"
+              title="Show Landing Page"
             >
-              <Box className="w-3 h-3 text-[#58a6ff]" />
-              <span>3D</span>
+              <Sparkles className="w-3 h-3 text-[#38bdf8]" />
+              <span>Landing</span>
             </button>
-
-            <button
-              onClick={() => handleTabSwitch('studio_2d')}
-              className={`flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                activeTab === 'studio_2d'
-                  ? 'bg-[#21262d] text-[#f0f6fc] border border-[#388bfd]/40'
-                  : 'text-[#8b949e] hover:text-[#e6edf3]'
-              }`}
-            >
-              <BarChart3 className="w-3 h-3 text-[#3fb950]" />
-              <span>2D</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('scanner')}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                activeTab === 'scanner'
-                  ? 'bg-[#21262d] text-[#f0f6fc] border border-[#388bfd]/40'
-                  : 'text-[#8b949e] hover:text-[#e6edf3]'
-              }`}
-              title="Camera Scanner"
-            >
-              <Camera className="w-3 h-3" />
-            </button>
-
-            <button
-              onClick={() => setActiveTab('chat')}
-              className={`flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-medium transition-colors ${
-                activeTab === 'chat'
-                  ? 'bg-[#21262d] text-[#f0f6fc] border border-[#388bfd]/40'
-                  : 'text-[#8b949e] hover:text-[#e6edf3]'
-              }`}
-              title="Analytics Engine"
-            >
-              <Terminal className="w-3 h-3" />
-            </button>
+            {[
+              { id: 'studio_3d', icon: <Box className="w-3 h-3 text-[#58a6ff]" />, label: '3D' },
+              { id: 'studio_2d', icon: <BarChart3 className="w-3 h-3 text-[#3fb950]" />, label: '2D' },
+              { id: 'scanner',   icon: <Camera className="w-3 h-3" />,   label: '' },
+              { id: 'chat',      icon: <Terminal className="w-3 h-3" />, label: '' },
+            ].map(t => (
+              <button
+                key={t.id}
+                onClick={() => t.id === 'scanner' || t.id === 'chat' ? setActiveTab(t.id) : handleTabSwitch(t.id)}
+                className={`flex items-center gap-1 px-2.5 py-0.5 rounded text-[11px] font-medium transition-colors ${
+                  activeTab === t.id
+                    ? 'bg-[#21262d] text-[#f0f6fc] border border-[#388bfd]/40'
+                    : 'text-[#8b949e] hover:text-[#e6edf3]'
+                }`}
+                title={t.id}
+              >
+                {t.icon}
+                {t.label && <span>{t.label}</span>}
+              </button>
+            ))}
           </div>
 
-          {/* Right Status Badges */}
-          <div className="flex items-center gap-2 text-xs">
+          {/* Right status */}
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setShowTableModal(true)}
               className="flex items-center gap-1 px-2 py-0.5 rounded bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] text-[11px] text-[#8b949e] hover:text-[#e6edf3] transition-colors"
@@ -229,39 +169,28 @@ export default function App() {
               <Table2 className="w-3 h-3" />
               <span className="hidden md:inline">Table</span>
             </button>
-
             <div className="hidden lg:flex items-center gap-2 mono text-[11px] text-[#8b949e] border-l border-[#30363d] pl-2">
               <span>n={nPoints}</span>
               <span>max={yMax}</span>
               <span>mean={yMean}</span>
             </div>
-            <span className="slope-badge mono" title="Linear regression slope (m)">
-              m={slope}
-            </span>
-
             <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-[#161b22] border border-[#30363d] mono text-[10px] text-[#8b949e]">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${
-                  backendOk ? 'bg-[var(--success)]' : backendOk === false ? 'bg-[var(--warn)]' : 'bg-[#484f58]'
-                }`}
-              />
-              <span className="hidden sm:inline">
-                {backendOk ? 'api' : backendOk === false ? 'local' : 'sync'}
-              </span>
+              <span className={`w-1.5 h-1.5 rounded-full ${backendOk ? 'bg-[var(--success)]' : backendOk === false ? 'bg-[var(--warn)]' : 'bg-[#484f58]'}`} />
+              <span className="hidden sm:inline">{backendOk ? 'api' : backendOk === false ? 'local' : 'sync'}</span>
             </div>
           </div>
         </header>
 
-        {/* 100% Screen Canvas Layer (Behind Everything) */}
+        {/* ── Full-screen canvas layer ── */}
         <div className="absolute inset-0 pt-10 w-full h-full z-0 overflow-hidden bg-[#0d1117]">
           {activeTab === 'studio_3d' && (
             <Chart3D
               data={graphData}
               physicsOpts={physicsOpts}
               selectedIndex={selectedNode}
-              cameraPosition={graphData?.camera_position}
-              cameraTarget={graphData?.camera_target}
               onNodeClick={(idx) => setSelectedNode(idx)}
+              cameraCoords={cameraCoords}
+              onCameraChange={setCurrentCameraCoords}
             />
           )}
 
@@ -278,7 +207,6 @@ export default function App() {
             </div>
           )}
 
-          {/* Camera Scanner View */}
           {activeTab === 'scanner' && (
             <div className="w-full h-full overflow-y-auto pt-6 px-4 pb-12 z-10 relative">
               <ScannerStudio
@@ -288,30 +216,20 @@ export default function App() {
             </div>
           )}
 
-          {/* AI Analytics Chat View */}
           {activeTab === 'chat' && (
             <div className="w-full h-full max-w-3xl mx-auto pt-6 px-4 pb-12 z-10 relative">
               <div className="h-[80vh] glass-panel rounded-lg shadow-2xl border border-[#30363d] overflow-hidden">
-                <AIAssistant
-                  graphData={graphData}
-                  onGraph={(updatedGraph) => {
-                    setGraphData({ ...updatedGraph, label: 'Assistant relationship graph', chart_type: '3d' })
-                    setSelectedNode(null)
-                  }}
-                />
+                <AIAssistant graphData={graphData} />
               </div>
             </div>
           )}
         </div>
 
-        {/* Floating Controls Sidebar (Left) */}
+        {/* Sidebar */}
         {sidebarOpen && (
           <ControlsSidebar
             graphData={graphData}
-            setGraphData={(d) => {
-              setGraphData(d)
-              setSelectedNode(null)
-            }}
+            setGraphData={(d) => { setGraphData(d); setSelectedNode(null) }}
             activeTab={activeTab}
             setActiveTab={handleTabSwitch}
             chartType={chartType}
@@ -319,33 +237,32 @@ export default function App() {
             physicsOpts={physicsOpts}
             setPhysicsOpts={setPhysicsOpts}
             backendOk={backendOk}
+            onOpenLanding={() => setShowLanding(true)}
+            onMoveCamera={setCameraCoords}
+            currentCameraCoords={currentCameraCoords}
           />
         )}
 
-        {/* Dynamic Node Details Panel (Right - Only when a node is clicked) */}
+        {/* Node Details Panel */}
         {selectedNode !== null && (
           <NodeDetailsPanel
             node={selectedNode}
             graphData={graphData}
             onUpdateData={setGraphData}
             onClose={(nextIdx) => {
-              if (typeof nextIdx === 'number') {
-                setSelectedNode(nextIdx)
-              } else {
-                setSelectedNode(null)
-              }
+              if (typeof nextIdx === 'number') setSelectedNode(nextIdx)
+              else setSelectedNode(null)
             }}
+            onMoveCamera={setCameraCoords}
           />
         )}
 
-        {/* Coordinate Data Table Modal */}
+        {/* Table Modal */}
         {showTableModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
             <div className="relative w-full max-w-2xl max-h-[85vh] overflow-y-auto glass-panel rounded-xl shadow-2xl border border-[#30363d]">
               <div className="flex items-center justify-between px-4 py-3 border-b border-[#30363d]">
-                <span className="mono text-xs font-semibold text-[#f0f6fc]">
-                  DATA_TABLE: {graphData?.label || 'Graph'}
-                </span>
+                <span className="mono text-xs font-semibold text-[#f0f6fc]">DATA_TABLE: {graphData?.label || 'Graph'}</span>
                 <button
                   onClick={() => setShowTableModal(false)}
                   className="p-1 rounded hover:bg-[#21262d] text-[#8b949e] hover:text-[#f0f6fc] transition-colors"

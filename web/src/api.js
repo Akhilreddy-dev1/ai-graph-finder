@@ -1,4 +1,5 @@
 import { adminHeaders, apiUrl } from "./config"
+import { calculateSlopeAtPoint } from "./utils/math"
 
 async function parseResponse(res) {
   const text = await res.text()
@@ -105,35 +106,49 @@ export async function analyzeImage(file, apiKey = "") {
   }
 }
 
-export async function chat(history, apiKey = "", graphContext = "", model, signal) {
-  const payload = typeof history === "string"
-    ? { question: history, api_key: apiKey, graph_context: graphContext || undefined, model: model || undefined }
-    : { history, api_key: apiKey, graph_context: graphContext || undefined, model: model || undefined }
-  const res = await fetch(apiUrl("/api/chat"), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-    signal,
-  })
-  return parseResponse(res)
+export async function fetchSlope(options, graphData) {
+  try {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 5000)
+
+    const res = await fetch(apiUrl("/api/slope"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        graph_data: graphData,
+        point_index: options?.index,
+        x_target: options?.x,
+      }),
+      signal: controller.signal,
+    })
+    clearTimeout(timer)
+    return await parseResponse(res)
+  } catch {
+    return calculateSlopeAtPoint(options, graphData)
+  }
 }
 
 export async function chatWithAI(question, graphContext = null, apiKey = "") {
   try {
-    const form = new FormData()
-    form.append("question", question)
-    if (graphContext) {
-      form.append("graph_context", JSON.stringify(graphContext))
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 9000)
+
+    const payload = {
+      question: question.trim(),
+      graph_context: graphContext ? JSON.stringify(graphContext) : null,
+      api_key: apiKey || null,
     }
-    if (apiKey) form.append("api_key", apiKey)
 
     const res = await fetch(apiUrl("/api/chat"), {
       method: "POST",
-      body: form,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
     })
+    clearTimeout(timer)
     return await parseResponse(res)
   } catch (e) {
-    // Client-side math AI fallback
+    // Client-side math AI fallback ensures instant zero-lag response
     return {
       reply: clientSideAnalyzeGraph(graphContext, question),
       engine: "client_fallback_math_ai",
@@ -223,9 +238,8 @@ function clientSideExtractGraph(name) {
 }
 
 export function clientSideAnalyzeGraph(data, question) {
-  const scopeReply = "I can only help with AI Graph Finder: creating graphs, analyzing graph data, finding slopes, trends, extrema, regression, and forecasts. For other questions, contact akhilreddy200925@gmail.com."
   if (!data || !data.x || !data.y || data.x.length === 0) {
-    return "Welcome to AI Graph Finder. Please load or scan a graph first; I can then analyze trends, find slopes, identify peaks, formulate regression equations, and forecast future points."
+    return "Please load or scan a graph first! Once loaded, I can analyze trends, find peaks, formulate regression equations, and forecast future points."
   }
   const x = data.x
   const y = data.y
@@ -256,15 +270,37 @@ export function clientSideAnalyzeGraph(data, question) {
   const r2 = ssTot > 0 ? Math.max(0, 1 - (ssRes / ssTot)) : 1.0
 
   const q = (question || "").toLowerCase()
-  const scopeTerms = ["graph", "chart", "plot", "data", "node", "edge", "slope", "trend", "regression", "equation", "forecast", "predict", "peak", "minimum", "maximum", "average", "visualiz", "coordinate"]
-  const greetingTerms = ["hello", "hi", "hey", "help", "what can you do"]
-  if (!scopeTerms.some((term) => q.includes(term)) && !greetingTerms.some((term) => q.includes(term))) {
-    return scopeReply
-  }
 
   // Greetings
   if (q.includes("hi") || q.includes("hello") || q.includes("hey") || q.includes("who are you")) {
     return `### 👋 Hello! I'm your Built-in AI Math & Graph Assistant.\n\nI have real-time mathematical awareness of **${data.label || "your active graph"}** (${n} points).\n\nHere are some things you can ask me:\n- *"What is the overall trend?"*\n- *"What are the peak and lowest coordinates?"*\n- *"What is the regression equation ($y = mx + b$)?"*\n- *"Predict the next 3 points"*\n- *"Calculate average and standard deviation"*`
+  }
+
+  // Specific point slope inquiry (e.g. "slope at point 3" or "derivative at x=2" or "slope at node 5")
+  const pointMatch = q.match(/(?:slope|derivative|gradient).*?(?:at|for|node|point|x\s*=|#)\s*([+-]?\d+(?:\.\d+)?)/i)
+  if (pointMatch) {
+    const rawVal = parseFloat(pointMatch[1])
+    let targetIndex = null
+    let targetX = null
+    if (Number.isInteger(rawVal) && rawVal >= 1 && rawVal <= n && (q.includes("node") || q.includes("point") || q.includes("#"))) {
+      targetIndex = rawVal - 1
+    } else {
+      targetX = rawVal
+    }
+
+    const ptSlope = calculateSlopeAtPoint({ index: targetIndex, x: targetX }, data)
+    if (ptSlope) {
+      const zStr = ptSlope.coordinate.z !== null ? `, Z = ${ptSlope.coordinate.z}` : ""
+      const slopeXZStr = ptSlope.slopeXZ !== null ? `\n- **Depth Slope ($dz/dx$):** \`${ptSlope.slopeXZ}\`` : ""
+      const pitchStr = ptSlope.pitchDeg !== null ? `\n- **Spatial Pitch Angle:** \`${ptSlope.pitchDeg}°\`` : ""
+      return `### 📐 Local Derivative (Slope) at Point #${ptSlope.index + 1}\n\n` +
+        `- **Target Coordinate:** \`(X: ${ptSlope.coordinate.x}, Y: ${ptSlope.coordinate.y}${zStr})\`\n` +
+        `- **Instantaneous Slope ($m = dy/dx$):** \`${ptSlope.slope}\`\n` +
+        `- **Tangent Angle:** \`${ptSlope.angleDeg}°\`\n` +
+        `- **Local Dynamic:** **${ptSlope.description}**${slopeXZStr}${pitchStr}\n` +
+        `- **Tangent Vector:** \`[${ptSlope.tangentVector.join(", ")}]\`\n\n` +
+        `> *Calculated via numerical finite differences on adjacent coordinates.*`
+    }
   }
 
   // Trend inquiry
@@ -306,3 +342,4 @@ export function clientSideAnalyzeGraph(data, question) {
   const sign = intercept >= 0 ? "+" : "-"
   return `### 📊 AI Analysis for **${data.label || "Graph"}**\n\n- **Data Points:** \`${n}\` coordinates\n- **Chart Type:** \`${(data.chart_type || "2D Line").toUpperCase()}\`\n- **Mean (Average):** \`${yMean.toFixed(2)}\`\n- **Range:** \`${yMin}\` (at X=${xMin}) to \`${yMax}\` (at X=${xMax})\n- **Linear Trend:** $y = ${slope.toFixed(3)}x ${sign} ${Math.abs(intercept).toFixed(3)}$ ($R^2 = ${r2.toFixed(3)}$)\n\nFeel free to ask me to predict future points, calculate specific ranges, or identify inflection points!`
 }
+

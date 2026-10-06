@@ -1,67 +1,84 @@
-
 import React, { useState, useRef, useEffect } from 'react'
-import { Send, Terminal, Trash2, Copy, Check, ChevronRight } from 'lucide-react'
-import { chat, clientSideAnalyzeGraph } from '../api'
+import { Send, Terminal, Trash2, Copy, Check, ChevronRight, StopCircle, RefreshCw } from 'lucide-react'
+import { chatWithAI, clientSideAnalyzeGraph } from '../api'
 
-export default function AIAssistant({ graphData, onGraph }) {
+export default function AIAssistant({ graphData, onClose }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: `Welcome to AI Graph Finder. I can create and analyze graphs, find slopes and trends, calculate regression and extrema, forecast values, and update the 3D canvas for **${graphData?.label || 'your active dataset'}**. I only answer questions about this website.`,
+      content: `### 🤖 AI Graph Analytics Engine\nReady to analyze coordinates, instantaneous derivatives, slopes ($m = dy/dx$), spatial vectors, or regression models for **${graphData?.label || 'Active Dataset'}**.\n\nType your question below or click one of the rapid command shortcuts.`,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     },
   ])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [apiKey, setApiKey] = useState('')
-  const [error, setError] = useState('')
   const [copiedIdx, setCopiedIdx] = useState(null)
+  const [errorStatus, setErrorStatus] = useState(null)
   const scrollRef = useRef(null)
+  const inputRef = useRef(null)
+  const abortControllerRef = useRef(null)
 
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
-  const sendMessage = async (textToSend) => {
-    const text = textToSend || input
-    if (!text.trim() || loading) return
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
 
-    const newMessages = [...messages, { role: 'user', content: text }]
-    setMessages(newMessages)
+  const handleCancel = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort()
+      abortControllerRef.current = null
+    }
+    setLoading(false)
+  }
+
+  const sendMessage = async (textToSend) => {
+    const text = (textToSend || input).trim()
+    if (!text || loading) return
+
+    setErrorStatus(null)
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    const userMessage = { role: 'user', content: text, timestamp }
+    const updatedMessages = [...messages, userMessage]
+
+    setMessages(updatedMessages)
     if (!textToSend) setInput('')
-    setError('')
     setLoading(true)
-    const controller = new AbortController()
-    const timeout = window.setTimeout(() => controller.abort(), 30000)
+
+    // Setup abort controller
+    abortControllerRef.current = new AbortController()
 
     try {
-      const response = await chat(newMessages, apiKey, JSON.stringify(graphData || {}), undefined, controller.signal)
-      const replyText = response?.reply || clientSideAnalyzeGraph(graphData, text)
-      if (!replyText) throw new Error('The assistant returned an empty response.')
-      const updatedGraph = response?.graph
-      if (updatedGraph && onGraph) onGraph(updatedGraph)
+      const response = await chatWithAI(text, graphData)
+      const replyContent = response?.reply || clientSideAnalyzeGraph(graphData, text)
       setMessages([
-        ...newMessages,
+        ...updatedMessages,
         {
           role: 'assistant',
-          content: replyText,
-          graphUpdated: Boolean(updatedGraph),
+          content: replyContent,
+          engine: response?.engine || 'analytical_engine',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ])
-    } catch (requestError) {
-      const message = requestError?.name === 'AbortError'
-        ? 'The assistant took too long to respond. Please try again.'
-        : requestError?.message || 'The assistant is temporarily unavailable.'
-      setError(message)
+    } catch (err) {
+      // Immediate fallback to local math engine ensures chat is never broken
+      const fallbackContent = clientSideAnalyzeGraph(graphData, text)
       setMessages([
-        ...newMessages,
+        ...updatedMessages,
         {
           role: 'assistant',
-          content: `${clientSideAnalyzeGraph(graphData, text)}\n\n[${message}]`,
+          content: fallbackContent || `Calculation error: ${err.message || 'Unable to compute graph analytics.'}`,
+          engine: 'client_math_engine',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         },
       ])
+      setErrorStatus('Handled via local mathematics fallback engine.')
     } finally {
-      window.clearTimeout(timeout)
       setLoading(false)
+      abortControllerRef.current = null
+      setTimeout(() => inputRef.current?.focus(), 50)
     }
   }
 
@@ -72,22 +89,23 @@ export default function AIAssistant({ graphData, onGraph }) {
   }
 
   const commands = [
-    { cmd: 'slope', label: 'Find Slope' },
-    { cmd: 'extrema', label: 'Min / Max Extrema' },
-    { cmd: 'equation', label: 'Fit Regression' },
-    { cmd: 'forecast', label: 'Project Next Points' },
+    { cmd: 'slope', label: 'Derivative & Slope (m)', prompt: 'Calculate the instantaneous slope (m) at each point and overall rate of change.' },
+    { cmd: 'trend', label: 'Trend & Regression', prompt: 'What is the overall trend, rate of change, and R² value for this graph?' },
+    { cmd: 'extrema', label: 'Min / Max Extrema', prompt: 'Identify the exact peak maximum and trough minimum coordinates.' },
+    { cmd: 'equation', label: 'Regression Formula', prompt: 'Calculate the mathematical regression model equation (y = mx + b).' },
+    { cmd: 'forecast', label: 'Project Extrapolations', prompt: 'Forecast the next 3 future data points based on current slope.' },
   ]
 
   return (
-    <div className="flex flex-col h-full overflow-hidden text-[var(--text-pri)]">
+    <div className="flex flex-col h-full overflow-hidden text-[var(--text-pri)] bg-[#0d1117]">
       {/* Header */}
-      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--border)] bg-[#161b22]/70">
+      <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-[var(--border)] bg-[#161b22]/85">
         <div className="flex items-center gap-2">
           <Terminal className="w-3.5 h-3.5 text-[var(--accent)]" />
           <span className="text-xs font-semibold tracking-wide uppercase text-[var(--text-sec)]">
-            Analytics Engine
+            AI Analytics & Math Engine
           </span>
-          <span className="mono text-[10px] text-[var(--text-muted)]">
+          <span className="mono text-[10px] text-[var(--text-muted)] truncate max-w-[140px]">
             [{graphData?.label || 'Dataset'}]
           </span>
         </div>
@@ -97,7 +115,8 @@ export default function AIAssistant({ graphData, onGraph }) {
               setMessages([
                 {
                   role: 'assistant',
-                  content: `Context reset for **${graphData?.label || 'active graph'}**. Ask me about graph creation, analysis, slope, trends, or the 3D canvas.`,
+                  content: `Context reset for **${graphData?.label || 'Active Graph'}**. Ask any question or command below.`,
+                  timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 },
               ])
             }
@@ -109,64 +128,54 @@ export default function AIAssistant({ graphData, onGraph }) {
         </div>
       </div>
 
-      <div className="px-3 py-2 border-b border-[var(--border)] bg-[#0d1117]/45">
-        <input
-          type="password"
-          value={apiKey}
-          onChange={(event) => setApiKey(event.target.value)}
-          placeholder="Optional Groq API key — server fallback enabled"
-          autoComplete="off"
-          className="w-full bg-[#0d1117] border border-[#30363d] rounded px-2.5 py-1.5 text-[10px] text-[var(--text-pri)] placeholder-[var(--text-muted)] outline-none focus:border-[var(--accent)]"
-        />
-      </div>
-
       {/* Quick Command Bar */}
-      <div className="px-3 py-1.5 border-b border-[var(--border)] flex gap-1.5 overflow-x-auto bg-[#0d1117]/50">
+      <div className="px-3 py-1.5 border-b border-[var(--border)] flex gap-1.5 overflow-x-auto bg-[#0d1117]/60">
         {commands.map((c) => (
           <button
             key={c.cmd}
-            onClick={() => sendMessage(`Run ${c.cmd} analysis on this graph.`)}
-            className="mono flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-[#21262d] border border-[#30363d] text-[var(--text-sec)] hover:text-[var(--text-pri)] hover:border-[var(--accent)] transition-colors shrink-0"
+            onClick={() => sendMessage(c.prompt)}
+            disabled={loading}
+            className="mono flex items-center gap-1 px-2 py-0.5 rounded text-[10px] bg-[#21262d] border border-[#30363d] text-[var(--text-sec)] hover:text-[var(--text-pri)] hover:border-[var(--accent)] transition-colors shrink-0 disabled:opacity-50"
+            title={c.prompt}
           >
-            <span className="text-[var(--accent)]">$</span>
+            <span className="text-[var(--accent)] font-bold">$</span>
             {c.cmd}
           </button>
         ))}
       </div>
-      {error && (
-        <div className="px-3 py-2 border-b border-[#f85149]/30 bg-[#2a1215] text-[11px] text-[#ff7b72]" role="alert">
-          {error}
-        </div>
-      )}
 
       {/* Message Feed */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3">
+      <div className="flex-1 overflow-y-auto p-3.5 space-y-3.5">
         {messages.map((m, idx) => (
           <div
             key={idx}
             className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}
           >
-            <div className="flex items-center gap-1 mb-0.5 px-1">
+            <div className="flex items-center gap-1.5 mb-1 px-1">
               <span className="mono text-[9px] uppercase tracking-wider text-[var(--text-muted)]">
                 {m.role === 'user' ? 'QUERY' : 'ENGINE'}
               </span>
+              {m.timestamp && (
+                <span className="mono text-[9px] text-[#484f58]">
+                  • {m.timestamp}
+                </span>
+              )}
             </div>
             <div
-              className={`relative group max-w-[90%] rounded-md p-2.5 text-xs leading-relaxed border ${
+              className={`relative group max-w-[92%] rounded-md p-3 text-xs leading-relaxed border transition-all ${
                 m.role === 'user'
-                  ? 'bg-[#1f242c] border-[#388bfd]/40 text-[#f0f6fc]'
+                  ? 'bg-[#1f242c] border-[#388bfd]/50 text-[#f0f6fc]'
                   : 'bg-[#161b22] border-[#30363d] text-[#c9d1d9]'
               }`}
             >
-              <div className="whitespace-pre-wrap font-sans">{m.content}</div>
-              {m.graphUpdated && (
-                <div className="graph-updated-chip"><span>✓</span> Graph Updated</div>
-              )}
+              <div className="whitespace-pre-wrap font-sans space-y-1.5">
+                {m.content}
+              </div>
 
               {m.role === 'assistant' && (
                 <button
                   onClick={() => handleCopy(m.content, idx)}
-                  className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-[#21262d] border border-[#30363d] text-[var(--text-muted)] hover:text-[var(--text-pri)]"
+                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded bg-[#21262d] border border-[#30363d] text-[var(--text-muted)] hover:text-[var(--text-pri)]"
                   title="Copy result"
                 >
                   {copiedIdx === idx ? <Check className="w-3 h-3 text-[var(--success)]" /> : <Copy className="w-3 h-3" />}
@@ -177,39 +186,56 @@ export default function AIAssistant({ graphData, onGraph }) {
         ))}
 
         {loading && (
-          <div className="flex items-center gap-2 px-2 text-xs text-[var(--text-muted)] mono">
-            <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] animate-ping" />
-            Evaluating analytical model...
+          <div className="flex items-center justify-between px-3 py-2 rounded bg-[#161b22]/70 border border-[#30363d] text-xs text-[var(--text-muted)] mono">
+            <div className="flex items-center gap-2">
+              <RefreshCw className="w-3 h-3 animate-spin text-[var(--accent)]" />
+              <span>Evaluating analytical derivatives & graph model...</span>
+            </div>
+            <button
+              onClick={handleCancel}
+              className="flex items-center gap-1 text-[11px] text-red-400 hover:text-red-300 transition-colors"
+            >
+              <StopCircle className="w-3 h-3" />
+              Stop
+            </button>
           </div>
         )}
         <div ref={scrollRef} />
       </div>
 
-      {/* Command Input */}
+      {/* Error / Status Bar */}
+      {errorStatus && (
+        <div className="px-3 py-1 bg-[#1c1917] border-t border-[#44403c] text-[10px] text-amber-400 mono">
+          {errorStatus}
+        </div>
+      )}
+
+      {/* Command Input Form */}
       <form
         onSubmit={(e) => {
           e.preventDefault()
           sendMessage()
         }}
-        className="p-2.5 border-t border-[var(--border)] bg-[#161b22]/80 flex gap-2"
+        className="p-2.5 border-t border-[var(--border)] bg-[#161b22]/90 flex gap-2"
       >
         <div className="flex-1 flex items-center gap-1.5 bg-[#0d1117] border border-[#30363d] rounded px-2.5 py-1.5 focus-within:border-[var(--accent)] transition-colors">
-          <ChevronRight className="w-3 h-3 text-[var(--text-muted)] shrink-0" />
+          <ChevronRight className="w-3.5 h-3.5 text-[var(--text-muted)] shrink-0" />
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type query or command name..."
+            placeholder="Ask about trend, equation, or slope at point (e.g. 'slope at node 2')..."
             className="mono flex-1 bg-transparent text-xs text-[var(--text-pri)] placeholder-[var(--text-muted)] outline-none"
           />
         </div>
         <button
           type="submit"
           disabled={!input.trim() || loading}
-          className="mono px-3 py-1.5 bg-[#238636] hover:bg-[#2ea043] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded text-xs font-semibold flex items-center gap-1 transition-colors"
+          className="mono px-3.5 py-1.5 bg-[#238636] hover:bg-[#2ea043] disabled:opacity-40 disabled:cursor-not-allowed text-white rounded text-xs font-semibold flex items-center gap-1.5 transition-colors"
         >
           <Send className="w-3 h-3" />
-          EXEC
+          <span>EXEC</span>
         </button>
       </form>
     </div>

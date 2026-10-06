@@ -53,12 +53,6 @@ export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
 
   const startCamera = async () => {
     setErrorMsg('')
-    setStatusMsg('')
-    if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      setErrorMsg('Camera requires HTTPS and a browser with camera support. Use the secure GitHub Pages URL or upload an image.')
-      setCameraActive(false)
-      return
-    }
     try {
       stopCamera()
       let stream
@@ -78,17 +72,9 @@ export default function ScannerStudio({ onDataExtracted, onNavigateToStudio }) {
         }
       }
       setCameraActive(true)
-    } catch (error) {
+    } catch {
       setCameraActive(false)
-      const name = error?.name
-      const message = name === 'NotAllowedError' || name === 'PermissionDeniedError'
-        ? 'Camera permission was denied. Allow camera access in your browser settings, then press Start Camera again.'
-        : name === 'NotFoundError' || name === 'DevicesNotFoundError'
-          ? 'No camera was found. Connect a camera or upload an image file instead.'
-          : name === 'NotReadableError'
-            ? 'The camera is busy in another app. Close it and try again, or upload an image file.'
-            : 'Camera access failed. Check browser permissions and use HTTPS, or upload an image file.'
-      setErrorMsg(message)
+      setErrorMsg('Camera access unavailable. Check browser permissions or upload an image file.')
     }
   }
 
