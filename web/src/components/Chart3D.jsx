@@ -99,11 +99,19 @@ export default function Chart3D({
     scene.add(plotGroup)
 
     // ── Data Normalization ──
-    const xVals = data?.x || [1, 2, 3, 4, 5, 6, 7, 8]
-    const yVals = data?.y || [2, 5, 3, 8, 7, 12, 10, 15]
+    const nodeGraph = Array.isArray(data?.nodes)
+    const graphNodes = nodeGraph ? data.nodes : []
+    const xVals = nodeGraph
+      ? graphNodes.map((_, index) => Math.cos((index / Math.max(graphNodes.length, 1)) * Math.PI * 2) * 10)
+      : (data?.x || [1, 2, 3, 4, 5, 6, 7, 8])
+    const yVals = nodeGraph
+      ? graphNodes.map((_, index) => Math.sin((index / Math.max(graphNodes.length, 1)) * Math.PI * 2) * 8)
+      : (data?.y || [2, 5, 3, 8, 7, 12, 10, 15])
     const zVals = data?.z && data.z.length === xVals.length
       ? data.z
-      : yVals.map((y, i) => y * Math.sin(i * 0.8))
+      : nodeGraph
+        ? graphNodes.map((_, index) => ((index % 3) - 1) * 3)
+        : yVals.map((y, i) => y * Math.sin(i * 0.8))
 
     const minX = Math.min(...xVals), maxX = Math.max(...xVals)
     const minY = Math.min(...yVals), maxY = Math.max(...yVals)
