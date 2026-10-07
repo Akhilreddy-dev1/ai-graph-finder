@@ -37,7 +37,7 @@ export default function LandingPage3D({ onEnter }) {
     const group = new THREE.Group()
     scene.add(group)
     const nodes = []
-    const nodeMaterial = new THREE.MeshBasicMaterial({ color: 0x8b7cff })
+    const nodeMaterial = new THREE.MeshBasicMaterial({ color: 0xf2b84b })
     const glowMaterial = new THREE.MeshBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.16 })
     for (let i = 0; i < 42; i += 1) {
       const angle = (i / 42) * Math.PI * 2
@@ -55,7 +55,7 @@ export default function LandingPage3D({ onEnter }) {
       glow.position.copy(position)
       group.add(glow)
     }
-    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x4f46e5, transparent: true, opacity: 0.28 })
+    const edgeMaterial = new THREE.LineBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.3 })
     nodes.forEach((source, index) => {
       nodes.slice(index + 1).forEach((target) => {
         if (source.distanceTo(target) < 5.7) {
@@ -133,7 +133,7 @@ export default function LandingPage3D({ onEnter }) {
       icon: Server,
       title: 'FastAPI intelligence',
       copy: 'A production-ready API powers graph analysis, conversational tool use, image digitization, and resilient fallback math.',
-      tone: 'purple',
+      tone: 'amber',
     },
     {
       icon: Cloud,

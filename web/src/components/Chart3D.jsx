@@ -103,8 +103,8 @@ export default function Chart3D({
     const sphereMeshes = []
     const sphereGeo = new THREE.SphereGeometry(0.55, 20, 20)
 
-    // Muted palette categories: Slate Blue, Muted Teal, Soft Amber, Steel Gray
-    const categoryColors = [0x58a6ff, 0x3fb950, 0xd29922, 0xa371f7, 0x79c0ff]
+    // Restrained technical palette: cyan, mint, amber, steel, and ice.
+    const categoryColors = [0x22d3ee, 0x34d399, 0xf2b84b, 0x94a3b8, 0x7dd3fc]
 
     for (let i = 0; i < xVals.length; i++) {
       const px = scale(xVals[i], minX, maxX, 20)
@@ -155,7 +155,7 @@ export default function Chart3D({
 
     if (nodeGraph && Array.isArray(data.links)) {
       const pointById = new Map(graphNodes.map((node, index) => [String(node.id), points3D[index]]))
-      const linkMaterial = new THREE.LineBasicMaterial({ color: 0x8b5cf6, transparent: true, opacity: 0.7 })
+      const linkMaterial = new THREE.LineBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.7 })
       data.links.forEach((link) => {
         const source = pointById.get(String(link.source))
         const target = pointById.get(String(link.target))
