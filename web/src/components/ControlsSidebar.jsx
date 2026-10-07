@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   Search,
   ChevronDown,
@@ -9,8 +8,8 @@ import {
   FileSpreadsheet,
   Camera,
   Bot,
-  Box,
-  BarChart3
+  Sparkles,
+  Compass,
 } from 'lucide-react'
 import { CLIENT_PRESETS_2D, CLIENT_PRESETS_3D } from '../api'
 
@@ -24,25 +23,33 @@ export default function ControlsSidebar({
   physicsOpts,
   setPhysicsOpts,
   backendOk,
+  onOpenLanding,
+  onMoveCamera,
+  currentCameraCoords,
 }) {
   const [search, setSearch] = useState('')
-  const [expanded, setExpanded] = useState({ datasets: true, type: true, physics: true, camera: false, export: false })
-  const [cameraDraft, setCameraDraft] = useState({
-    x: graphData?.camera_position?.x ?? 28,
-    y: graphData?.camera_position?.y ?? 22,
-    z: graphData?.camera_position?.z ?? 34,
+  const [expanded, setExpanded] = useState({
+    datasets: true,
+    type: true,
+    physics: true,
+    camera: true,
+    export: false,
   })
 
-  const toggle = (key) => setExpanded(p => ({ ...p, [key]: !p[key] }))
+  // Dynamic Camera Form Inputs
+  const [camX, setCamX] = useState(28)
+  const [camY, setCamY] = useState(22)
+  const [camZ, setCamZ] = useState(34)
 
-  const applyCamera = () => {
-    const position = {
-      x: Number(cameraDraft.x) || 28,
-      y: Number(cameraDraft.y) || 22,
-      z: Number(cameraDraft.z) || 34,
+  useEffect(() => {
+    if (currentCameraCoords?.position) {
+      setCamX(currentCameraCoords.position.x)
+      setCamY(currentCameraCoords.position.y)
+      setCamZ(currentCameraCoords.position.z)
     }
-    setGraphData({ ...graphData, camera_position: position, camera_target: { x: 0, y: 0, z: 0 } })
-  }
+  }, [currentCameraCoords])
+
+  const toggle = (key) => setExpanded((p) => ({ ...p, [key]: !p[key] }))
 
   // Download helpers
   const dl = (content, name, mime) => {
@@ -78,7 +85,7 @@ export default function ControlsSidebar({
     { key: 'saddle_3d', label: 'Saddle (3D)', group: '3D' },
     { key: 'spiral_3d', label: 'Vortex (3D)', group: '3D' },
   ]
-  const filtered = allPresets.filter(p => p.label.toLowerCase().includes(search.toLowerCase()))
+  const filtered = allPresets.filter((p) => p.label.toLowerCase().includes(search.toLowerCase()))
 
   const selectPreset = (key) => {
     const preset = CLIENT_PRESETS_2D[key] || CLIENT_PRESETS_3D[key]
@@ -92,6 +99,25 @@ export default function ControlsSidebar({
   const isActivePreset = (key) => {
     const p = CLIENT_PRESETS_2D[key] || CLIENT_PRESETS_3D[key]
     return p?.label === activeLabel
+  }
+
+  const handleApplyCamera = (e) => {
+    e?.preventDefault()
+    if (!onMoveCamera) return
+    const x = parseFloat(camX)
+    const y = parseFloat(camY)
+    const z = parseFloat(camZ)
+    if (!isNaN(x) && !isNaN(y) && !isNaN(z)) {
+      onMoveCamera({
+        position: { x, y, z },
+        target: currentCameraCoords?.target || { x: 0, y: 0, z: 0 },
+      })
+    }
+  }
+
+  const setCameraPreset = (position, target = { x: 0, y: 0, z: 0 }) => {
+    if (!onMoveCamera) return
+    onMoveCamera({ position, target })
   }
 
   const SectionHeader = ({ id, title }) => (
@@ -109,6 +135,17 @@ export default function ControlsSidebar({
       className="glass-panel panel-slide-left fixed left-0 top-10 bottom-0 w-60 z-30 flex flex-col overflow-hidden"
       style={{ borderRight: '1px solid var(--border)', borderTop: 'none' }}
     >
+      {/* 3D Landing Page Shortcut */}
+      <div className="px-3 pt-3 pb-1">
+        <button
+          onClick={onOpenLanding}
+          className="w-full flex items-center justify-center gap-2 px-3 py-1.5 rounded-md bg-[#1f242c] hover:bg-[#2b323c] text-[#79c0ff] hover:text-white border border-[#388bfd]/40 text-xs font-semibold transition-all shadow-sm"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-[#58a6ff] animate-pulse" />
+          <span>3D Landing Intro</span>
+        </button>
+      </div>
+
       {/* Search */}
       <div className="px-3 py-2">
         <div className="flex items-center gap-2 px-2 py-1.5 rounded-md bg-[rgba(13,17,23,0.8)] border border-[var(--border)]">
@@ -185,6 +222,86 @@ export default function ControlsSidebar({
 
         <div className="h-px bg-[var(--border)] mx-3 mb-1" />
 
+        {/* 3D Camera Controls (Only in 3D Mode) */}
+        {activeTab === 'studio_3d' && (
+          <>
+            <SectionHeader id="camera" title="3D Camera Coordinates" />
+            {expanded.camera && (
+              <div className="px-3 pb-2 space-y-2">
+                <form onSubmit={handleApplyCamera} className="space-y-1.5">
+                  <div className="grid grid-cols-3 gap-1">
+                    <div>
+                      <span className="mono text-[9px] text-[var(--text-muted)]">Cam X</span>
+                      <input
+                        type="number"
+                        step="any"
+                        value={camX}
+                        onChange={(e) => setCamX(e.target.value)}
+                        className="mono w-full px-1.5 py-1 text-xs rounded bg-[rgba(13,17,23,0.8)] border border-[var(--border)] text-[var(--text-pri)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                    <div>
+                      <span className="mono text-[9px] text-[var(--text-muted)]">Cam Y</span>
+                      <input
+                        type="number"
+                        step="any"
+                        value={camY}
+                        onChange={(e) => setCamY(e.target.value)}
+                        className="mono w-full px-1.5 py-1 text-xs rounded bg-[rgba(13,17,23,0.8)] border border-[var(--border)] text-[var(--text-pri)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                    <div>
+                      <span className="mono text-[9px] text-[var(--text-muted)]">Cam Z</span>
+                      <input
+                        type="number"
+                        step="any"
+                        value={camZ}
+                        onChange={(e) => setCamZ(e.target.value)}
+                        className="mono w-full px-1.5 py-1 text-xs rounded bg-[rgba(13,17,23,0.8)] border border-[var(--border)] text-[var(--text-pri)] outline-none focus:border-[var(--accent)]"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full py-1 text-[11px] font-semibold rounded bg-[#21262d] hover:bg-[#30363d] border border-[#30363d] text-[#e6edf3] transition-colors"
+                  >
+                    Update Camera
+                  </button>
+                </form>
+
+                {/* Quick Presets */}
+                <div className="grid grid-cols-2 gap-1 pt-1">
+                  <button
+                    onClick={() => setCameraPreset({ x: 0, y: 48, z: 0 })}
+                    className="py-1 px-1.5 rounded text-[10px] bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] text-[var(--text-sec)] hover:text-white transition-colors"
+                  >
+                    Top (Y)
+                  </button>
+                  <button
+                    onClick={() => setCameraPreset({ x: 0, y: 0, z: 48 })}
+                    className="py-1 px-1.5 rounded text-[10px] bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] text-[var(--text-sec)] hover:text-white transition-colors"
+                  >
+                    Front (Z)
+                  </button>
+                  <button
+                    onClick={() => setCameraPreset({ x: 48, y: 0, z: 0 })}
+                    className="py-1 px-1.5 rounded text-[10px] bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] text-[var(--text-sec)] hover:text-white transition-colors"
+                  >
+                    Side (X)
+                  </button>
+                  <button
+                    onClick={() => setCameraPreset({ x: 28, y: 22, z: 34 })}
+                    className="py-1 px-1.5 rounded text-[10px] bg-[#161b22] hover:bg-[#21262d] border border-[#30363d] text-[var(--text-sec)] hover:text-white transition-colors"
+                  >
+                    Isometric
+                  </button>
+                </div>
+              </div>
+            )}
+            <div className="h-px bg-[var(--border)] mx-3 mb-1" />
+          </>
+        )}
+
         {/* Chart type (2D only) */}
         {activeTab === 'studio_2d' && (
           <>
@@ -243,36 +360,6 @@ export default function ControlsSidebar({
                       </span>
                     </button>
                   ))}
-              </div>
-            )}
-            <div className="h-px bg-[var(--border)] mx-3 mb-1" />
-          </>
-        )}
-
-        {activeTab === 'studio_3d' && (
-          <>
-            <SectionHeader id="camera" title="Camera Position" />
-            {expanded.camera && (
-              <div className="px-3 pb-2 space-y-2">
-                <p className="text-[10px] leading-relaxed text-[var(--text-muted)]">
-                  Set the 3D camera coordinates. Changes animate smoothly around the graph.
-                </p>
-                <div className="grid grid-cols-3 gap-1">
-                  {['x', 'y', 'z'].map((axis) => (
-                    <label key={axis} className="space-y-1">
-                      <span className="mono block text-[9px] text-[var(--text-muted)]">{axis}</span>
-                      <input
-                        type="number"
-                        value={cameraDraft[axis]}
-                        onChange={(event) => setCameraDraft((current) => ({ ...current, [axis]: event.target.value }))}
-                        className="control-input px-1.5 py-1 text-[10px]"
-                      />
-                    </label>
-                  ))}
-                </div>
-                <button onClick={applyCamera} className="w-full py-1.5 rounded text-[10px] font-semibold text-white bg-[var(--accent)]">
-                  Apply Camera
-                </button>
               </div>
             )}
             <div className="h-px bg-[var(--border)] mx-3 mb-1" />

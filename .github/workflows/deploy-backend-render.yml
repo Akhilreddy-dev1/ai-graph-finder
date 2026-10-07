@@ -27,6 +27,7 @@ jobs:
             echo "Required Render secrets are missing; aborting"
             exit 2
           fi
+
           echo "Triggering Render deploy for service $RENDER_SERVICE_ID"
           resp=$(curl -sS -X POST \
             -H "Accept: application/json" \
@@ -34,12 +35,59 @@ jobs:
             -H "Content-Type: application/json" \
             "https://api.render.com/v1/services/$RENDER_SERVICE_ID/deploys" \
             -d '{}' -w "\n%{http_code}") || (echo "Render API request failed"; exit 1)
+
           http_code=$(echo "$resp" | tail -n1)
           body=$(echo "$resp" | sed '$d')
           echo "HTTP_STATUS=$http_code"
           echo "$body"
-          echo "Fetching service details..."
-          service_resp=$(curl -sS -H "Accept: application/json" -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services/$RENDER_SERVICE_ID") || true
-          echo "$service_resp"
-          domain=$(echo "$service_resp" | sed -n 's/.*\"defaultDomain\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p' || true)
-          echo "SERVICE_DOMAIN=$domain"
+
+          # extract deploy id
+          deploy_id=$(echo "$body" | sed -n 's/.*"id"[[:space:]]*:[[:space:]]*"\([^\"]*\)".*/\1/p' || true)
+          echo "DEPLOY_ID=$deploy_id"
+
+          if [ -n "$deploy_id" ]; then
+            echo "Polling deploy status (up to 10 minutes)..."
+            status=""
+            for i in $(seq 1 60); do
+              status_resp=$(curl -sS -H "Accept: application/json" -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/deploys/$deploy_id") || true
+              status=$(echo "$status_resp" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^\"]*\)".*/\1/p' || true)
+              echo "[$i] deploy status: $status"
+              if [ "$status" = "active" ] || [ "$status" = "live" ] || [ "$status" = "succeeded" ]; then
+                echo "Deploy finished with status: $status"
+                break
+              fi
+              if [ "$status" = "failed" ] || [ "$status" = "cancelled" ]; then
+                echo "Deploy ended with status: $status"
+                break
+              fi
+              sleep 10
+            done
+            echo "Final deploy status response:"
+            echo "$status_resp"
+
+            echo "Fetching service details and printing URL and health..."
+            service_resp=$(curl -sS -H "Accept: application/json" -H "Authorization: Bearer $RENDER_API_KEY" "https://api.render.com/v1/services/$RENDER_SERVICE_ID") || true
+            echo "$service_resp"
+            default_domain=$(echo "$service_resp" | sed -n 's/.*\"url\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p' || true)
+            if [ -z "$default_domain" ]; then
+              default_domain=$(echo "$service_resp" | sed -n 's/.*\"defaultDomain\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p' || true)
+            fi
+            echo "SERVICE_URL=$default_domain"
+
+            if [ -n "$default_domain" ]; then
+              echo "Checking HTTP response from $default_domain"
+              for j in $(seq 1 12); do
+                echo "Attempt $j to reach $default_domain"
+                http_resp=$(curl -IsS "$default_domain" -m 10 || true)
+                echo "$http_resp"
+                if echo "$http_resp" | grep -q "HTTP/"; then
+                  echo "Received HTTP response from $default_domain"
+                  break
+                fi
+                sleep 5
+              done
+            fi
+          else
+            echo "No deploy id found; cannot poll. Service response body was:"
+            echo "$body"
+          fi
