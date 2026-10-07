@@ -60,8 +60,8 @@ function GraphCanvas() {
     scene.add(nodeGroup)
 
     const positions = []
-    // Palette: muted blue, violet, cyan
-    const palette = [0x6366f1, 0x818cf8, 0x38bdf8, 0xa78bfa, 0x7dd3fc, 0xc4b5fd]
+    // Palette: cyan, mint, amber, ice, and steel.
+    const palette = [0x22d3ee, 0x34d399, 0xf2b84b, 0x7dd3fc, 0x94a3b8, 0xf8fafc]
 
     const nodeMeshes = []
     for (let i = 0; i < NODE_COUNT; i++) {
@@ -110,9 +110,9 @@ function GraphCanvas() {
         if (positions[i].distanceTo(positions[j]) < CONNECT_DIST) {
           edgePositions.push(positions[i].x, positions[i].y, positions[i].z)
           edgePositions.push(positions[j].x, positions[j].y, positions[j].z)
-          // Color: gradient from blue to purple
-          const c1 = hexToRgb(0x6366f1)
-          const c2 = hexToRgb(0x38bdf8)
+          // Color: cool signal lines with a restrained cyan shift.
+          const c1 = hexToRgb(0x22d3ee)
+          const c2 = hexToRgb(0x7dd3fc)
           edgeColors.push(c1.r, c1.g, c1.b, c2.r, c2.g, c2.b)
         }
       }
@@ -132,7 +132,7 @@ function GraphCanvas() {
       scene.add(m)
       return m
     }
-    const ring1 = addRing(30, 0x6366f1, Math.PI / 3.5)
+    const ring1 = addRing(30, 0xf2b84b, Math.PI / 3.5)
     const ring2 = addRing(36, 0x38bdf8, Math.PI / 1.8)
 
     /* --- Mouse parallax --- */
@@ -291,21 +291,21 @@ export default function LandingPage3D({ onEnter }) {
       icon: Network,
       title: 'Node-Based Visualization',
       desc:  'Explore your data as a live, interactive 3D node graph. Pan, rotate, and zoom with mouse controls. Every point tells a story.',
-      accent: '#6366f1',
+      accent: '#f2b84b',
       delay:  0.05,
     },
     {
       icon: Server,
       title: 'FastAPI Backend Integration',
       desc:  'A production-grade Python FastAPI service powers the analytics engine — streaming real-time graph metadata with sub-100ms response.',
-      accent: '#38bdf8',
+      accent: '#22d3ee',
       delay:  0.15,
     },
     {
       icon: Cloud,
       title: 'Automated Cloud Deployment',
       desc:  'One-click deploy to Render or any cloud via GitHub Actions CI/CD. Zero-config, fully automated, always live.',
-      accent: '#a78bfa',
+      accent: '#22d3ee',
       delay:  0.25,
     },
     {
@@ -370,13 +370,13 @@ export default function LandingPage3D({ onEnter }) {
             <span
               className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold tracking-widest uppercase"
               style={{
-                background: 'rgba(99,102,241,0.12)',
-                border: '1px solid rgba(99,102,241,0.35)',
-                color: '#818cf8',
+                background: 'rgba(8,145,178,0.14)',
+                border: '1px solid rgba(34,211,238,0.35)',
+                color: '#67e8f9',
               }}
             >
               <span
-                className="w-1.5 h-1.5 rounded-full bg-indigo-400 animate-pulse"
+                className="w-1.5 h-1.5 rounded-full bg-cyan-300 animate-pulse"
               />
               Open Source · AI-Powered · Built with Three.js
             </span>
@@ -390,10 +390,10 @@ export default function LandingPage3D({ onEnter }) {
             custom={0.2}
             className="text-5xl sm:text-7xl font-black tracking-tight leading-[1.05]"
             style={{
-              background: 'linear-gradient(135deg, #ffffff 20%, #c7d2fe 50%, #60a5fa 80%)',
+              background: 'linear-gradient(135deg, #ffffff 20%, #a5f3fc 50%, #f2b84b 80%)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              filter: 'drop-shadow(0 0 40px rgba(99,102,241,0.4))',
+              filter: 'drop-shadow(0 0 40px rgba(34,211,238,0.34))',
             }}
           >
             Navigate Your<br />
@@ -427,8 +427,8 @@ export default function LandingPage3D({ onEnter }) {
               rel="noopener noreferrer"
               className="group flex items-center gap-2.5 px-7 py-3.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-105"
               style={{
-                background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
-                boxShadow: '0 0 28px rgba(99,102,241,0.55), 0 0 60px rgba(99,102,241,0.2), 0 4px 20px rgba(0,0,0,0.5)',
+                background: 'linear-gradient(135deg, #0e7490, #0f766e)',
+                boxShadow: '0 0 28px rgba(34,211,238,0.4), 0 0 60px rgba(8,145,178,0.18), 0 4px 20px rgba(0,0,0,0.5)',
               }}
             >
               <GithubIcon className="w-4 h-4" />
@@ -479,7 +479,7 @@ export default function LandingPage3D({ onEnter }) {
         >
           <span
             className="inline-block text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full"
-            style={{ background: 'rgba(99,102,241,0.12)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.25)' }}
+            style={{ background: 'rgba(8,145,178,0.12)', color: '#67e8f9', border: '1px solid rgba(34,211,238,0.25)' }}
           >
             Capabilities
           </span>
@@ -511,7 +511,7 @@ export default function LandingPage3D({ onEnter }) {
             onClick={handleEnter}
             className="px-8 py-3.5 rounded-xl font-semibold text-sm text-white transition-all hover:scale-105 hover:shadow-2xl"
             style={{
-              background: 'linear-gradient(135deg, #4f46e5, #6366f1)',
+              background: 'linear-gradient(135deg, #0e7490, #0f766e)',
               boxShadow: '0 0 28px rgba(99,102,241,0.4)',
             }}
           >
@@ -534,7 +534,7 @@ export default function LandingPage3D({ onEnter }) {
 
         {/* Footer line */}
         <div className="mt-16 flex flex-col items-center gap-2 opacity-40">
-          <div className="h-px w-48 bg-gradient-to-r from-transparent via-indigo-500 to-transparent" />
+          <div className="h-px w-48 bg-gradient-to-r from-transparent via-cyan-400 to-transparent" />
           <p className="text-xs text-slate-500 font-mono">AI Graph Finder 2.0 PRO · Open Source MIT</p>
         </div>
       </section>

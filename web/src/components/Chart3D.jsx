@@ -118,7 +118,8 @@ export default function Chart3D({
     const sphereMeshes = []
     const sphereGeo = new THREE.SphereGeometry(0.55, 20, 20)
 
-    const categoryColors = [0x58a6ff, 0x3fb950, 0xd29922, 0xa371f7, 0x79c0ff]
+    // Restrained technical palette: cyan, mint, amber, steel, and ice.
+    const categoryColors = [0x22d3ee, 0x34d399, 0xf2b84b, 0x94a3b8, 0x7dd3fc]
 
     for (let i = 0; i < xVals.length; i++) {
       const px = scale(xVals[i], minX, maxX, 20)
@@ -165,12 +166,23 @@ export default function Chart3D({
       }
     }
 
+    if (nodeGraph && Array.isArray(data.links)) {
+      const pointById = new Map(graphNodes.map((node, index) => [String(node.id), points3D[index]]))
+      const linkMaterial = new THREE.LineBasicMaterial({ color: 0x22d3ee, transparent: true, opacity: 0.7 })
+      data.links.forEach((link) => {
+        const source = pointById.get(String(link.source))
+        const target = pointById.get(String(link.target))
+        if (!source || !target) return
+        const geometry = new THREE.BufferGeometry().setFromPoints([source, target])
+        plotGroup.add(new THREE.Line(geometry, linkMaterial))
+      })
+    }
     // Spline curve
     if (physicsOpts?.showCurve !== false && points3D.length > 1) {
       const curve = new THREE.CatmullRomCurve3(points3D)
       const tubeGeo = new THREE.TubeGeometry(curve, 72, 0.12, 8, false)
       const tubeMat = new THREE.MeshStandardMaterial({
-        color: 0x58a6ff,
+        color: 0x22d3ee,
         roughness: 0.4,
         metalness: 0.1,
       })
